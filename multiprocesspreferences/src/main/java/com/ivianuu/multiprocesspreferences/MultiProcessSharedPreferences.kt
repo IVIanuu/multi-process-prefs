@@ -123,7 +123,7 @@ class MultiProcessSharedPreferences private constructor(
             }
 
             val valueCol = cursor.getColumnIndexOrThrow(Contract.COLUMN_VALUE)
-            return getValue(cursor, typeCol, valueCol).deserialized(expectedType) as T
+            return getValue(cursor, typeCol, valueCol) as T
         }
     }
 
@@ -291,7 +291,7 @@ class MultiProcessSharedPreferences private constructor(
             context: Context,
             authority: String,
             prefName: String = context.packageName + "_preferences" // default name
-        ): MultiProcessSharedPreferences {
+        ): SharedPreferences {
             return MultiProcessSharedPreferences(context, authority, prefName)
         }
 

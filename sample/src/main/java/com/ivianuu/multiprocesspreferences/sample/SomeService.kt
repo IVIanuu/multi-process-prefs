@@ -21,8 +21,23 @@ class SomeService : Service() {
     override fun onCreate() {
         super.onCreate()
 
-        rxPrefs.getString("test").asObservable()
-            .subscribe { d { "jo $it" } }
+        rxPrefs.getBoolean("boolean").asObservable()
+            .subscribe { d { "boolean changed $it" } }
+
+        rxPrefs.getFloat("float").asObservable()
+            .subscribe { d { "float changed $it" } }
+
+        rxPrefs.getInteger("int").asObservable()
+            .subscribe { d { "int changed $it" } }
+
+        rxPrefs.getLong("long").asObservable()
+            .subscribe { d { "long changed $it" } }
+
+        rxPrefs.getString("string").asObservable()
+            .subscribe { d { "string changed $it" } }
+
+        rxPrefs.getStringSet("string_set").asObservable()
+            .subscribe { d { "string set changed $it" } }
     }
 
     override fun onBind(intent: Intent?): IBinder? {

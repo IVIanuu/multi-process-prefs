@@ -4,6 +4,7 @@ import android.content.*
 import android.database.Cursor
 import android.database.MatrixCursor
 import android.net.Uri
+import android.util.Log
 
 /**
  * A [ContentProvider] for [SharedPreferences]
@@ -147,7 +148,7 @@ abstract class MultiProcessPreferenceProvider(
 
     override fun onSharedPreferenceChanged(prefs: SharedPreferences, prefKey: String) {
         for ((prefName, value) in preferences) {
-            if (value === prefs) {
+            if (value == prefs) {
                 val uri = getPreferenceUri(prefName, prefKey)
                 context.contentResolver.notifyChange(uri, null)
                 return
@@ -181,7 +182,7 @@ abstract class MultiProcessPreferenceProvider(
         when (type) {
             Contract.TYPE_NULL -> editor.remove(prefKey)
             Contract.TYPE_STRING -> editor.putString(prefKey, value as String)
-            Contract.TYPE_STRING_SET -> editor.putStringSet(prefKey, value as Set<String>)
+            Contract.TYPE_STRING_SET -> editor.putStringSet(prefKey, (value as String).deserializedToStringSet())
             Contract.TYPE_INT -> editor.putInt(prefKey, value as Int)
             Contract.TYPE_LONG -> editor.putLong(prefKey, value as Long)
             Contract.TYPE_FLOAT -> editor.putFloat(prefKey, value as Float)
@@ -192,6 +193,7 @@ abstract class MultiProcessPreferenceProvider(
 
     private fun buildRow(projection: Array<String>, key: String, value: Any): Array<Any> {
         val row = arrayOfNulls<Any>(projection.size)
+
         for (i in 0 until projection.size) {
             val col = projection[i]
             when (col) {

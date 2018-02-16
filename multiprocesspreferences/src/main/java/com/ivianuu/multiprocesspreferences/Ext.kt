@@ -1,5 +1,11 @@
 package com.ivianuu.multiprocesspreferences
 
+import android.util.Log
+
+internal fun Any.d(message: () -> String) {
+    Log.d(this::class.java.simpleName, message())
+}
+
 internal fun Any.serialized(): Any {
     return when (this) {
         is Boolean -> if (this) 1 else 0
@@ -17,7 +23,7 @@ internal fun Any?.deserialized(expectedType: Int): Any? {
             Contract.TYPE_INT -> this
             Contract.TYPE_LONG -> this
             Contract.TYPE_STRING -> this
-            Contract.TYPE_STRING_SET -> (this as String).deserializedToStringSet()
+            Contract.TYPE_STRING_SET -> this
             else -> throw IllegalArgumentException("Unknown type: " + expectedType)
         }
     } catch (e: ClassCastException) {
