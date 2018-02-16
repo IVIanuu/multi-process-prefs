@@ -48,11 +48,11 @@ class MultiProcessSharedPreferences private constructor(
         return querySingle(key, defValue, Contract.TYPE_LONG)
     }
 
-    override fun getString(key: String, defValue: String): String {
+    override fun getString(key: String, defValue: String?): String? {
         return querySingle(key, defValue, Contract.TYPE_STRING)
     }
 
-    override fun getStringSet(key: String, defValues: Set<String>): Set<String> {
+    override fun getStringSet(key: String, defValues: Set<String>?): Set<String>? {
         return querySingle(key, defValues, Contract.TYPE_STRING_SET)
     }
 

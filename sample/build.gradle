@@ -41,4 +41,7 @@ dependencies {
 
     // Multi process prefs
     implementation project(':multiprocesspreferences')
+
+    // RxPreferences
+    implementation rootProject.ext.rxPreferences
 }

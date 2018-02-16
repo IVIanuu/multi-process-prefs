@@ -11,8 +11,7 @@ import kotlinx.android.synthetic.main.activity_main.*
 class MainActivity : AppCompatActivity() {
 
     private val prefs by lazy {
-        MultiProcessSharedPreferences.create(this,
-            MyPreferenceProvider.AUTHORITY, MyPreferenceProvider.PREF_NAME)
+        MultiProcessSharedPreferences.create(this, MyPreferenceProvider.AUTHORITY)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
