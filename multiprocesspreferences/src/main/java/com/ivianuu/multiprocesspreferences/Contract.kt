@@ -1,12 +1,18 @@
 package com.ivianuu.multiprocesspreferences
 
 internal object Contract {
+    const val AUTHORITY = "com.ivianuu.multiprocesspreferences.prefs"
+
     const val COLUMN_KEY = "key"
     const val COLUMN_TYPE = "type"
     const val COLUMN_VALUE = "value"
 
     val ALL_COLUMNS =
-        arrayOf(Contract.COLUMN_KEY, Contract.COLUMN_TYPE, Contract.COLUMN_VALUE)
+        arrayOf(
+            COLUMN_KEY,
+            COLUMN_TYPE,
+            COLUMN_VALUE
+        )
 
     const val TYPE_BOOLEAN = 0
     const val TYPE_FLOAT = 1

@@ -4,16 +4,13 @@ import android.content.*
 import android.database.Cursor
 import android.database.MatrixCursor
 import android.net.Uri
-import android.util.Log
 
 /**
  * A [ContentProvider] for [SharedPreferences]
  */
-abstract class MultiProcessPreferenceProvider(
-    authority: String,
-    private val prefNames: Array<String>
-) : ContentProvider(), SharedPreferences.OnSharedPreferenceChangeListener {
+open class MultiProcessPreferenceProvider : ContentProvider(), SharedPreferences.OnSharedPreferenceChangeListener {
 
+    private val authority = "com.ivianuu.multiprocesspreferences.prefs"
     private val baseUri = Uri.parse("content://" + authority)
     private val preferences = HashMap<String, SharedPreferences>()
 
@@ -23,13 +20,6 @@ abstract class MultiProcessPreferenceProvider(
     }
 
     override fun onCreate(): Boolean {
-        // get prefs and register change listeners
-        for (prefName in prefNames) {
-            val prefs = context.getSharedPreferences(prefName, Context.MODE_PRIVATE)
-            prefs.registerOnSharedPreferenceChangeListener(this)
-            preferences[prefName] = prefs
-        }
-
         return true
     }
 
@@ -47,7 +37,7 @@ abstract class MultiProcessPreferenceProvider(
         val prefName = nameKeyPair.name
         val prefKey = nameKeyPair.key
 
-        val prefs = getPreferencesOrThrow(prefName, prefKey, false)
+        val prefs = getPreferencesByName(prefName)
         val prefMap = prefs.all
 
         val cursor = MatrixCursor(projection)
@@ -77,7 +67,7 @@ abstract class MultiProcessPreferenceProvider(
         val prefName = nameKeyPair.name
         val prefKey = getKeyFromUriOrValues(nameKeyPair, values)
 
-        val prefs = getPreferencesOrThrow(prefName, prefKey, true)
+        val prefs = getPreferencesByName(prefName)
         val editor = prefs.edit()
 
         putPreference(editor, prefKey, values)
@@ -101,7 +91,6 @@ abstract class MultiProcessPreferenceProvider(
 
         for (value in values) {
             val prefKey = getKeyFromValues(value)
-            checkAccessOrThrow(prefName, prefKey, true)
             putPreference(editor, prefKey, value)
         }
 
@@ -117,7 +106,7 @@ abstract class MultiProcessPreferenceProvider(
         val prefName = nameKeyPair.name
         val prefKey = nameKeyPair.key
 
-        val prefs = getPreferencesOrThrow(prefName, prefKey, true)
+        val prefs = getPreferencesByName(prefName)
         val editor = prefs.edit()
 
         if (isSingleKey(prefKey)) {
@@ -156,10 +145,6 @@ abstract class MultiProcessPreferenceProvider(
         }
     }
 
-    protected fun checkAccess(prefName: String, prefKey: String, write: Boolean): Boolean {
-        return true
-    }
-
     private fun putPreference(
         editor: SharedPreferences.Editor,
         prefKey: String,
@@ -168,7 +153,17 @@ abstract class MultiProcessPreferenceProvider(
         val type = values.getAsInteger(Contract.COLUMN_TYPE)
                 ?: throw IllegalArgumentException("Invalid or no preference type specified")
 
-        val value = values.get(Contract.COLUMN_VALUE).deserialized(type)
+        val rawValue = values.get(Contract.COLUMN_VALUE)
+        val value = when(type) {
+            Contract.TYPE_NULL -> rawValue
+            Contract.TYPE_BOOLEAN -> rawValue == 1
+            Contract.TYPE_FLOAT -> rawValue
+            Contract.TYPE_INT -> rawValue
+            Contract.TYPE_LONG -> rawValue
+            Contract.TYPE_STRING -> rawValue
+            Contract.TYPE_STRING_SET -> rawValue
+            else -> throw IllegalArgumentException("Unknown type: " + type)
+        }
 
         if (!isSingleKey(prefKey)) {
             if (type == Contract.TYPE_NULL) {
@@ -194,12 +189,18 @@ abstract class MultiProcessPreferenceProvider(
     private fun buildRow(projection: Array<String>, key: String, value: Any): Array<Any> {
         val row = arrayOfNulls<Any>(projection.size)
 
+        val serializedValue = when (value) {
+            is Boolean -> if (value) 1 else 0
+            is Set<*> -> value.serializedToString()
+            else -> value
+        }
+
         for (i in 0 until projection.size) {
             val col = projection[i]
             when (col) {
                 Contract.COLUMN_KEY -> row[i] = key
                 Contract.COLUMN_TYPE -> row[i] = value.getPreferenceType()
-                Contract.COLUMN_VALUE -> row[i] = value.serialized()
+                Contract.COLUMN_VALUE -> row[i] = serializedValue
                 else -> throw IllegalArgumentException("Invalid column name: " + col)
             }
         }
@@ -218,24 +219,12 @@ abstract class MultiProcessPreferenceProvider(
         return PrefNameKeyPair(prefName, prefKey)
     }
 
-    private fun checkAccessOrThrow(prefName: String, prefKey: String, write: Boolean) {
-        if (!checkAccess(prefName, prefKey, write)) {
-            throw SecurityException("Insufficient permissions to access: $prefName/$prefKey")
-        }
-    }
-
     private fun getPreferencesByName(prefName: String): SharedPreferences {
-        return preferences[prefName]
-                ?: throw IllegalArgumentException("Unknown preference file name: $prefName")
-    }
-
-    private fun getPreferencesOrThrow(
-        prefName: String,
-        prefKey: String,
-        write: Boolean
-    ): SharedPreferences {
-        checkAccessOrThrow(prefName, prefKey, write)
-        return getPreferencesByName(prefName)
+        return preferences.getOrPut(prefName) {
+            context.getSharedPreferences(prefName, Context.MODE_PRIVATE).apply {
+                registerOnSharedPreferenceChangeListener(this@MultiProcessPreferenceProvider)
+            }
+        }
     }
 
     private fun getPreferenceUri(prefName: String, prefKey: String): Uri {

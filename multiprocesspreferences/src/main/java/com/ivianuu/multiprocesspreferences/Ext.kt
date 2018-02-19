@@ -1,36 +1,5 @@
 package com.ivianuu.multiprocesspreferences
 
-import android.util.Log
-
-internal fun Any.d(message: () -> String) {
-    Log.d(this::class.java.simpleName, message())
-}
-
-internal fun Any.serialized(): Any {
-    return when (this) {
-        is Boolean -> if (this) 1 else 0
-        is Set<*> -> serializedToString()
-        else -> this
-    }
-}
-
-internal fun Any?.deserialized(expectedType: Int): Any? {
-    return try {
-        when(expectedType) {
-            Contract.TYPE_NULL -> null
-            Contract.TYPE_BOOLEAN -> this == 1
-            Contract.TYPE_FLOAT -> this
-            Contract.TYPE_INT -> this
-            Contract.TYPE_LONG -> this
-            Contract.TYPE_STRING -> this
-            Contract.TYPE_STRING_SET -> this
-            else -> throw IllegalArgumentException("Unknown type: " + expectedType)
-        }
-    } catch (e: ClassCastException) {
-        throw IllegalArgumentException("Expected type $expectedType, got $this", e)
-    }
-}
-
 fun Set<*>.serializedToString(): String {
     val sb = StringBuilder()
     for (value in (this as Set<String>)) {

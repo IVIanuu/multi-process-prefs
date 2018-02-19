@@ -15,13 +15,12 @@ import java.util.*
  */
 class MultiProcessSharedPreferences private constructor(
     private val context: Context,
-    authority: String,
     prefName: String
 ): SharedPreferences {
 
     private val handler = Handler()
 
-    private val baseUri = Uri.parse("content://" + authority)
+    private val baseUri = Uri.parse("content://" + Contract.AUTHORITY)
         .buildUpon()
         .appendPath(prefName)
         .build()
@@ -184,12 +183,14 @@ class MultiProcessSharedPreferences private constructor(
         private val values = ArrayList<ContentValues>()
 
         override fun putBoolean(key: String, value: Boolean): SharedPreferences.Editor {
-            createAddOp(key, Contract.TYPE_BOOLEAN).put(Contract.COLUMN_VALUE, if (value) 1 else 0)
+            createAddOp(key, Contract.TYPE_BOOLEAN).put(
+                Contract.COLUMN_VALUE, if (value) 1 else 0)
             return this
         }
 
         override fun putFloat(key: String, value: Float): SharedPreferences.Editor {
-            createAddOp(key, Contract.TYPE_FLOAT).put(Contract.COLUMN_VALUE, value)
+            createAddOp(key, Contract.TYPE_FLOAT).put(
+                Contract.COLUMN_VALUE, value)
             return this
         }
 
@@ -199,12 +200,14 @@ class MultiProcessSharedPreferences private constructor(
         }
 
         override fun putLong(key: String, value: Long): SharedPreferences.Editor {
-            createAddOp(key, Contract.TYPE_LONG).put(Contract.COLUMN_VALUE, value)
+            createAddOp(key, Contract.TYPE_LONG).put(
+                Contract.COLUMN_VALUE, value)
             return this
         }
 
         override fun putString(key: String, value: String): SharedPreferences.Editor {
-            createAddOp(key, Contract.TYPE_STRING).put(Contract.COLUMN_VALUE, value)
+            createAddOp(key, Contract.TYPE_STRING).put(
+                Contract.COLUMN_VALUE, value)
             return this
         }
 
@@ -212,7 +215,8 @@ class MultiProcessSharedPreferences private constructor(
             key: String,
             values: Set<String>
         ): SharedPreferences.Editor {
-            createAddOp(key, Contract.TYPE_STRING_SET).put(Contract.COLUMN_VALUE, values.serializedToString())
+            createAddOp(key, Contract.TYPE_STRING_SET).put(
+                Contract.COLUMN_VALUE, values.serializedToString())
             return this
         }
 
@@ -289,10 +293,9 @@ class MultiProcessSharedPreferences private constructor(
         @JvmOverloads
         fun create(
             context: Context,
-            authority: String,
             prefName: String = context.packageName + "_preferences" // default name
         ): SharedPreferences {
-            return MultiProcessSharedPreferences(context, authority, prefName)
+            return MultiProcessSharedPreferences(context, prefName)
         }
 
     }

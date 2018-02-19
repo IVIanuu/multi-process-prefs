@@ -13,8 +13,7 @@ import com.ivianuu.multiprocesspreferences.MultiProcessSharedPreferences
 class SomeService : Service() {
 
     private val prefs by lazy {
-        MultiProcessSharedPreferences.create(this,
-            MyPreferenceProvider.AUTHORITY, MyPreferenceProvider.PREF_NAME)
+        MultiProcessSharedPreferences.create(this)
     }
     private val rxPrefs by lazy { RxSharedPreferences.create(prefs) }
 

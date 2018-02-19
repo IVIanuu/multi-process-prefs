@@ -1,1 +1,13 @@
-<manifest package="com.ivianuu.multiprocesspreferences" />
+<manifest package="com.ivianuu.multiprocesspreferences"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+
+        <provider
+            android:name=".MultiProcessPreferenceProvider"
+            android:authorities="com.ivianuu.multiprocesspreferences.prefs"
+            android:exported="false"/>
+
+    </application>
+
+</manifest>

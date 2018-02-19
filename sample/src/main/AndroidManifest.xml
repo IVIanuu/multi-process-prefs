@@ -17,11 +17,6 @@
             </intent-filter>
         </activity>
 
-        <provider
-            android:name=".MyPreferenceProvider"
-            android:authorities="com.ivianuu.multiprocesspreferences.sample.prefs"
-            android:exported="false"/>
-
         <service android:name=".SomeService"
             android:process=":some_process"/>
 

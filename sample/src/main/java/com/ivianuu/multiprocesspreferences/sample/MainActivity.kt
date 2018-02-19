@@ -12,7 +12,7 @@ import kotlinx.android.synthetic.main.activity_main.*
 class MainActivity : AppCompatActivity() {
 
     private val prefs by lazy {
-        MultiProcessSharedPreferences.create(this, MyPreferenceProvider.AUTHORITY)
+        MultiProcessSharedPreferences.create(this)
     }
     private val rxPrefs by lazy {
         RxSharedPreferences.create(prefs)
