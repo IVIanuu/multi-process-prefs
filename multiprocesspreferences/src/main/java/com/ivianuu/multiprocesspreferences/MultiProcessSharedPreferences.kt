@@ -20,7 +20,7 @@ class MultiProcessSharedPreferences private constructor(
 
     private val handler = Handler()
 
-    private val baseUri = Uri.parse("content://" + Contract.AUTHORITY)
+    private val baseUri = Uri.parse("content://${context.packageName}.prefs")
         .buildUpon()
         .appendPath(prefName)
         .build()

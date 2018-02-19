@@ -1,7 +1,6 @@
 package com.ivianuu.multiprocesspreferences
 
 internal object Contract {
-    const val AUTHORITY = "com.ivianuu.multiprocesspreferences.prefs"
 
     const val COLUMN_KEY = "key"
     const val COLUMN_TYPE = "type"

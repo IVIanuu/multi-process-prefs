@@ -10,16 +10,19 @@ import android.net.Uri
  */
 open class MultiProcessPreferenceProvider : ContentProvider(), SharedPreferences.OnSharedPreferenceChangeListener {
 
-    private val authority = "com.ivianuu.multiprocesspreferences.prefs"
-    private val baseUri = Uri.parse("content://" + authority)
+    private lateinit var authority: String
+    private lateinit var baseUri: Uri
+    private lateinit var uriMatcher: UriMatcher
+
     private val preferences = HashMap<String, SharedPreferences>()
 
-    private val uriMatcher = UriMatcher(UriMatcher.NO_MATCH).apply {
-        addURI(authority, "*/", PREFERENCES_ID)
-        addURI(authority, "*/*", PREFERENCE_ID)
-    }
-
     override fun onCreate(): Boolean {
+        authority = context.packageName + ".prefs"
+        baseUri = Uri.parse("content://" + authority)
+        uriMatcher = UriMatcher(UriMatcher.NO_MATCH).apply {
+            addURI(authority, "*/", PREFERENCES_ID)
+            addURI(authority, "*/*", PREFERENCE_ID)
+        }
         return true
     }
 
