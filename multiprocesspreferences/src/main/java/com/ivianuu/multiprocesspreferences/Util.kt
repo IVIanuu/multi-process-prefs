@@ -35,10 +35,10 @@ internal object Util {
         return String(Base64.decode(path.toByteArray(), Base64.NO_WRAP))
     }
 
-    fun resolveUri(contentUri: Uri, key: String?, prefFileName: String): Uri {
+    fun resolveUri(contentUri: Uri, key: String?, name: String): Uri {
         var builder: Uri.Builder = contentUri.buildUpon()
             .appendPath(Contract.PREFERENCES_ENTITY)
-            .appendPath(encodePath(prefFileName))
+            .appendPath(encodePath(name))
             .appendPath(Contract.PREFERENCE_ENTITY)
         if (key != null && key.isNotEmpty()) {
             builder = builder.appendPath(encodePath(key))

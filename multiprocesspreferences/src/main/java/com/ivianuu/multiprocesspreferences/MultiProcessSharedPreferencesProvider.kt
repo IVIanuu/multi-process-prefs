@@ -4,8 +4,6 @@ import android.content.*
 import android.database.Cursor
 import android.database.MatrixCursor
 import android.net.Uri
-import android.os.Build
-import android.preference.PreferenceManager
 import com.ivianuu.multiprocesspreferences.Contract.FIELD_KEY
 import com.ivianuu.multiprocesspreferences.Contract.FIELD_VALUE
 import com.ivianuu.multiprocesspreferences.Contract.PREFERENCES_ENTITY
@@ -14,11 +12,12 @@ import com.ivianuu.multiprocesspreferences.Contract.PROJECTION
 import com.ivianuu.multiprocesspreferences.Util.decodePath
 import com.ivianuu.multiprocesspreferences.Util.encodePath
 import com.ivianuu.multiprocesspreferences.Util.marshallSet
+import com.ivianuu.multiprocesspreferences.Util.resolveUri
 import com.ivianuu.multiprocesspreferences.Util.unmarshallSet
 import org.json.JSONException
 import java.util.*
 
-class MultiProcessSharedPreferencesProvider : ContentProvider() {
+class MultiProcessSharedPreferencesProvider : ContentProvider(), SharedPreferences.OnSharedPreferenceChangeListener {
 
     private val preferences = HashMap<String, SharedPreferences>()
 
@@ -123,11 +122,8 @@ class MultiProcessSharedPreferencesProvider : ContentProvider() {
             }
         }
 
-        // Notify
         if (count > 0 && key != null) {
-            val notifyUri = uri.buildUpon().appendPath(encodePath(key)).build()
-            notifyChange(notifyUri)
-            return notifyUri
+            return uri.buildUpon().appendPath(encodePath(key)).build()
         }
         return null
     }
@@ -148,9 +144,6 @@ class MultiProcessSharedPreferencesProvider : ContentProvider() {
             }
         }
 
-        if (count > 0) {
-            notifyChange(uri)
-        }
         return count
     }
 
@@ -187,9 +180,6 @@ class MultiProcessSharedPreferencesProvider : ContentProvider() {
             }
         }
 
-        if (count > 0) {
-            notifyChange(uri)
-        }
         return count
     }
 
@@ -201,6 +191,14 @@ class MultiProcessSharedPreferencesProvider : ContentProvider() {
         }
     }
 
+    override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences, key: String) {
+        val name = preferences.toList().firstOrNull { it.second == sharedPreferences }?.first
+        if (name != null) {
+            val uri = resolveUri(contentUri, key, name)
+            notifyChange(uri)
+        }
+    }
+
     private fun notifyChange(uri: Uri) {
         context.contentResolver.notifyChange(uri, null)
     }
@@ -208,7 +206,9 @@ class MultiProcessSharedPreferencesProvider : ContentProvider() {
     @Synchronized private fun getSharedPreferences(uri: Uri): SharedPreferences {
         val name = decodePath(uri.pathSegments[1])
         return preferences.getOrPut(name) {
-            context.getSharedPreferences(name, Context.MODE_PRIVATE)
+            context.getSharedPreferences(name, Context.MODE_PRIVATE).apply {
+                registerOnSharedPreferenceChangeListener(this@MultiProcessSharedPreferencesProvider)
+            }
         }
     }
 
