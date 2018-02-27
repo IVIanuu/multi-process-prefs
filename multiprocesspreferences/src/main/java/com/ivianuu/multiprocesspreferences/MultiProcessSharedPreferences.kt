@@ -7,296 +7,406 @@ import android.database.ContentObserver
 import android.database.Cursor
 import android.net.Uri
 import android.os.Handler
-import java.lang.ref.WeakReference
+import android.util.Pair
+import com.ivianuu.multiprocesspreferences.Contract.FIELD_KEY
+import com.ivianuu.multiprocesspreferences.Contract.FIELD_VALUE
+import com.ivianuu.multiprocesspreferences.Contract.PREFERENCES_ENTITY
+import com.ivianuu.multiprocesspreferences.Contract.PROJECTION
+import com.ivianuu.multiprocesspreferences.Util.decodePath
+import com.ivianuu.multiprocesspreferences.Util.marshallSet
+import com.ivianuu.multiprocesspreferences.Util.resolveUri
+import com.ivianuu.multiprocesspreferences.Util.unmarshallSet
+import org.json.JSONArray
+import org.json.JSONException
 import java.util.*
 
-/**
- * Multi process shared preferences
- */
-class MultiProcessSharedPreferences private constructor(
+class MultiProcessSharedPreferences constructor(
     private val context: Context,
-    prefName: String
-): SharedPreferences {
+    val name: String
+) : SharedPreferences {
 
-    private val handler = Handler()
+    private val observer = object : ContentObserver(Handler()) {
+        override fun deliverSelfNotifications(): Boolean {
+            return false
+        }
 
-    private val baseUri = Uri.parse("content://${context.packageName}.prefs")
-        .buildUpon()
-        .appendPath(prefName)
-        .build()
-
-    private val listeners = WeakHashMap<SharedPreferences.OnSharedPreferenceChangeListener, PreferenceContentObserver>()
-
-    override fun contains(key: String): Boolean {
-        return containsKey(key)
+        override fun onChange(selfChange: Boolean, uri: Uri) {
+            val name = decodePath(uri.pathSegments[1])
+            if (name == name) {
+                val key = decodePath(uri.lastPathSegment)
+                for (cb in listeners) {
+                    cb.onSharedPreferenceChanged(this@MultiProcessSharedPreferences, key)
+                }
+            }
+        }
+    }
+    private val listeners = ArrayList<SharedPreferences.OnSharedPreferenceChangeListener>()
+    private val contentUri = Uri.parse("content://" + context.packageName + ".prefs")
+    
+    init {
+        val uri = contentUri 
+            .buildUpon()
+            .appendPath(PREFERENCES_ENTITY)
+            .build()
+        context.contentResolver.registerContentObserver(uri, true, observer)
     }
 
-    override fun getBoolean(key: String, defValue: Boolean): Boolean {
-        return querySingle(key, defValue, Contract.TYPE_BOOLEAN)
+    override fun getAll(): Map<String, *> {
+        val values = HashMap<String, Any?>()
+        val c = context.contentResolver.query(
+            resolveUri(contentUri,null, name), PROJECTION, null, null, null
+        )
+        if (c != null) {
+            try {
+                while (c.moveToNext()) {
+                    val key = c.getString(c.getColumnIndexOrThrow(FIELD_KEY))
+                    val type = c.getType(c.getColumnIndexOrThrow(FIELD_VALUE))
+                    var value: Any? = null
+                    when (type) {
+                        Cursor.FIELD_TYPE_INTEGER -> value =
+                                c.getLong(c.getColumnIndexOrThrow(FIELD_VALUE))
+                        Cursor.FIELD_TYPE_FLOAT -> value =
+                                c.getFloat(c.getColumnIndexOrThrow(FIELD_VALUE))
+                        Cursor.FIELD_TYPE_STRING -> {
+                            val v = c.getString(c.getColumnIndexOrThrow(FIELD_VALUE))
+                            value = if (v == "true" || v == "false") {
+                                v.toBoolean()
+                            } else {
+                                try {
+                                    unmarshallSet(v)
+                                } catch (e: JSONException) {
+                                    v
+                                }
+
+                            }
+                        }
+                    }
+
+                    values[key] = value
+                }
+            } finally {
+                try {
+                    c.close()
+                } catch (e: Exception) {
+                    // Ignore
+                }
+
+            }
+        }
+        return values
     }
 
-    override fun getFloat(key: String, defValue: Float): Float {
-        return querySingle(key, defValue, Contract.TYPE_FLOAT)
+
+    override fun getString(key: String, defValue: String?): String? {
+        val c = context.contentResolver.query(
+            resolveUri(contentUri, key, name), PROJECTION, null, null, null
+        )
+        try {
+            if (c == null || !c.moveToFirst()) {
+                return defValue
+            }
+            val type = c.getType(c.getColumnIndexOrThrow(FIELD_VALUE))
+            return if (type != Cursor.FIELD_TYPE_STRING) {
+                defValue
+            } else c.getString(c.getColumnIndexOrThrow(FIELD_VALUE))
+
+        } finally {
+            if (c != null) {
+                try {
+                    c.close()
+                } catch (e: Exception) {
+                    // Ignore
+                }
+
+            }
+        }
+    }
+
+
+    override fun getStringSet(key: String, defValues: Set<String>?): Set<String>? {
+        val c = context.contentResolver.query(
+            resolveUri(contentUri, key, name), PROJECTION, null, null, null
+        )
+        try {
+            if (c == null || !c.moveToFirst()) {
+                return defValues
+            }
+            val type = c.getType(c.getColumnIndexOrThrow(FIELD_VALUE))
+            if (type != Cursor.FIELD_TYPE_STRING) {
+                return defValues
+            }
+
+            try {
+                val v = c.getString(c.getColumnIndexOrThrow(FIELD_VALUE))
+                val array = JSONArray(v)
+                val size = array.length()
+                val set = HashSet<String>(size)
+                (0 until size).mapTo(set) { array.getString(it) }
+                return set
+
+            } catch (e: JSONException) {
+                // Ignore
+            }
+
+            return defValues
+        } finally {
+            if (c != null) {
+                try {
+                    c.close()
+                } catch (e: Exception) {
+                    // Ignore
+                }
+
+            }
+        }
     }
 
     override fun getInt(key: String, defValue: Int): Int {
-        return querySingle(key, defValue, Contract.TYPE_INT)
+        val c = context.contentResolver.query(
+            resolveUri(contentUri, key, name), PROJECTION, null, null, null
+        )
+        try {
+            if (c == null || !c.moveToFirst()) {
+                return defValue
+            }
+            val type = c.getType(c.getColumnIndexOrThrow(FIELD_VALUE))
+            return if (type != Cursor.FIELD_TYPE_INTEGER) {
+                defValue
+            } else c.getInt(
+                c.getColumnIndexOrThrow(
+                    FIELD_VALUE
+                )
+            )
+
+        } finally {
+            if (c != null) {
+                try {
+                    c.close()
+                } catch (e: Exception) {
+                    // Ignore
+                }
+
+            }
+        }
     }
 
     override fun getLong(key: String, defValue: Long): Long {
-        return querySingle(key, defValue, Contract.TYPE_LONG)
+        val c = context.contentResolver.query(
+            resolveUri(contentUri, key, name), PROJECTION, null, null, null
+        )
+        try {
+            if (c == null || !c.moveToFirst()) {
+                return defValue
+            }
+            val type = c.getType(c.getColumnIndexOrThrow(FIELD_VALUE))
+            return if (type != Cursor.FIELD_TYPE_INTEGER) {
+                defValue
+            } else c.getLong(c.getColumnIndexOrThrow(FIELD_VALUE))
+
+        } finally {
+            if (c != null) {
+                try {
+                    c.close()
+                } catch (e: Exception) {
+                    // Ignore
+                }
+
+            }
+        }
     }
 
-    override fun getString(key: String, defValue: String?): String? {
-        return querySingle(key, defValue, Contract.TYPE_STRING)
+    override fun getFloat(key: String, defValue: Float): Float {
+        val c = context.contentResolver.query(
+            resolveUri(contentUri, key, name), PROJECTION, null, null, null
+        )
+        try {
+            if (c == null || !c.moveToFirst()) {
+                return defValue
+            }
+            val type = c.getType(c.getColumnIndexOrThrow(FIELD_VALUE))
+            return if (type != Cursor.FIELD_TYPE_FLOAT) {
+                defValue
+            } else c.getFloat(c.getColumnIndexOrThrow(FIELD_VALUE))
+
+        } finally {
+            if (c != null) {
+                try {
+                    c.close()
+                } catch (e: Exception) {
+                    // Ignore
+                }
+
+            }
+        }
     }
 
-    override fun getStringSet(key: String, defValues: Set<String>?): Set<String>? {
-        return querySingle(key, defValues, Contract.TYPE_STRING_SET)
+    override fun getBoolean(key: String, defValue: Boolean): Boolean {
+        val c = context.contentResolver.query(
+            resolveUri(contentUri, key, name), PROJECTION, null, null, null
+        )
+        try {
+            if (c == null || !c.moveToFirst()) {
+                return defValue
+            }
+            val type = c.getType(c.getColumnIndexOrThrow(FIELD_VALUE))
+            return if (type != Cursor.FIELD_TYPE_STRING) {
+                defValue
+            } else java.lang.Boolean.parseBoolean(
+                c.getString(
+                    c.getColumnIndexOrThrow(
+                        FIELD_VALUE
+                    )
+                )
+            )
+
+        } finally {
+            if (c != null) {
+                try {
+                    c.close()
+                } catch (e: Exception) {
+                    // Ignore
+                }
+
+            }
+        }
     }
 
-    override fun getAll(): Map<String, Any> {
-        return queryAll()
+    override fun contains(key: String): Boolean {
+        return all.containsKey(key)
     }
 
     override fun edit(): SharedPreferences.Editor {
-        return Editor(this)
+        return MultiProcessEditor(context, name, contentUri)
     }
 
-    override fun registerOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener) {
-        if (listeners.containsKey(listener)) return
-        val observer = PreferenceContentObserver(listener, handler, this)
-        listeners[listener] = observer
-        context.contentResolver.registerContentObserver(baseUri, true, observer)
+    override fun registerOnSharedPreferenceChangeListener(cb: SharedPreferences.OnSharedPreferenceChangeListener) {
+        listeners.add(cb)
     }
 
-    override fun unregisterOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener) {
-        val observer = listeners.remove(listener)
-        if (observer != null) {
-            context.contentResolver.unregisterContentObserver(observer)
-        }
+    override fun unregisterOnSharedPreferenceChangeListener(cb: SharedPreferences.OnSharedPreferenceChangeListener) {
+        listeners.remove(cb)
     }
 
-    private fun query(uri: Uri, columns: Array<String>): Cursor? {
-        var cursor: Cursor? = null
-        try {
-            cursor = context.contentResolver.query(uri, columns, null, null, null)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+    private class MultiProcessEditor(
+        private val context: Context,
+        private val preferencesFileName: String,
+        private val contentUri: Uri
+    ) : SharedPreferences.Editor {
+        private val values: MutableList<Pair<String, Any>>
+        private val removedEntries: MutableSet<String>
+        private var clearAllFlag: Boolean = false
 
-        if (cursor == null) {
-            throw IllegalAccessException("query() failed or returned null cursor")
+        init {
+            values = ArrayList()
+            removedEntries = HashSet()
+            clearAllFlag = false
         }
 
-        return cursor
-    }
-
-    private fun bulkInsert(uri: Uri, values: Array<ContentValues>): Boolean {
-        val count: Int
-        try {
-            count = context.contentResolver.bulkInsert(uri, values)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            return false
-        }
-        return count == values.size
-    }
-
-    private fun <T> querySingle(key: String, defValue: T, expectedType: Int): T {
-        val uri = baseUri.buildUpon().appendPath(key).build()
-        val columns = arrayOf(Contract.COLUMN_TYPE, Contract.COLUMN_VALUE)
-        val cursor = query(uri, columns) ?: return defValue
-
-        cursor.use {
-            if (!cursor.moveToFirst()) {
-                return defValue
-            }
-
-            val typeCol = cursor.getColumnIndexOrThrow(Contract.COLUMN_TYPE)
-            val type = cursor.getInt(typeCol)
-            if (type == Contract.TYPE_NULL) {
-                return defValue
-            } else if (type != expectedType) {
-                throw ClassCastException("Preference type mismatch")
-            }
-
-            val valueCol = cursor.getColumnIndexOrThrow(Contract.COLUMN_VALUE)
-            return getValue(cursor, typeCol, valueCol) as T
-        }
-    }
-
-    private fun queryAll(): Map<String, Any> {
-        val uri = baseUri.buildUpon().appendPath("").build()
-        val columns = arrayOf(
-            Contract.COLUMN_KEY,
-            Contract.COLUMN_TYPE,
-            Contract.COLUMN_VALUE
-        )
-        val cursor = query(uri, columns) ?: return emptyMap()
-        cursor.use {
-            val map = HashMap<String, Any>()
-
-            val keyCol = cursor.getColumnIndexOrThrow(Contract.COLUMN_KEY)
-            val typeCol = cursor.getColumnIndexOrThrow(Contract.COLUMN_TYPE)
-            val valueCol = cursor.getColumnIndexOrThrow(Contract.COLUMN_VALUE)
-
-            while (cursor.moveToNext()) {
-                val key = cursor.getString(keyCol)
-                map[key] = getValue(cursor, typeCol, valueCol)
-            }
-            return map
-        }
-    }
-
-    private fun containsKey(key: String): Boolean {
-        val uri = baseUri.buildUpon().appendPath(key).build()
-        val columns = arrayOf(Contract.COLUMN_TYPE)
-        val cursor = query(uri, columns) ?: return false
-
-        cursor.use {
-            if (!cursor.moveToFirst()) {
-                return false
-            }
-
-            val typeCol = cursor.getColumnIndexOrThrow(Contract.COLUMN_TYPE)
-            return cursor.getInt(typeCol) != Contract.TYPE_NULL
-        }
-    }
-
-    private fun getValue(cursor: Cursor, typeCol: Int, valueCol: Int): Any {
-        val expectedType = cursor.getInt(typeCol)
-        return when (expectedType) {
-            Contract.TYPE_STRING -> cursor.getString(valueCol)
-            Contract.TYPE_STRING_SET -> cursor.getString(valueCol).deserializedToStringSet()
-            Contract.TYPE_INT -> cursor.getInt(valueCol)
-            Contract.TYPE_LONG -> cursor.getLong(valueCol)
-            Contract.TYPE_FLOAT -> cursor.getFloat(valueCol)
-            Contract.TYPE_BOOLEAN -> cursor.getInt(valueCol) != 0
-            else -> throw AssertionError("Invalid expected type: " + expectedType)
-        }
-    }
-
-
-    private class Editor(private val preferences: MultiProcessSharedPreferences): SharedPreferences.Editor {
-
-        private val values = ArrayList<ContentValues>()
-
-        override fun putBoolean(key: String, value: Boolean): SharedPreferences.Editor {
-            createAddOp(key, Contract.TYPE_BOOLEAN).put(
-                Contract.COLUMN_VALUE, if (value) 1 else 0)
+        override fun putString(key: String, value: String?): SharedPreferences.Editor {
+            values.add(Pair<String, Any>(key, value as Any?))
+            removedEntries.remove(key)
             return this
         }
 
-        override fun putFloat(key: String, value: Float): SharedPreferences.Editor {
-            createAddOp(key, Contract.TYPE_FLOAT).put(
-                Contract.COLUMN_VALUE, value)
+        override fun putStringSet(key: String, values: Set<String>?): SharedPreferences.Editor {
+            this.values.add(Pair<String, Any>(key, values as Any?))
+            removedEntries.remove(key)
             return this
         }
 
         override fun putInt(key: String, value: Int): SharedPreferences.Editor {
-            createAddOp(key, Contract.TYPE_INT).put(Contract.COLUMN_VALUE, value)
+            values.add(Pair(key, value as Any))
+            removedEntries.remove(key)
             return this
         }
 
         override fun putLong(key: String, value: Long): SharedPreferences.Editor {
-            createAddOp(key, Contract.TYPE_LONG).put(
-                Contract.COLUMN_VALUE, value)
+            values.add(Pair(key, value as Any))
+            removedEntries.remove(key)
             return this
         }
 
-        override fun putString(key: String, value: String): SharedPreferences.Editor {
-            createAddOp(key, Contract.TYPE_STRING).put(
-                Contract.COLUMN_VALUE, value)
+        override fun putFloat(key: String, value: Float): SharedPreferences.Editor {
+            values.add(Pair(key, value as Any))
+            removedEntries.remove(key)
             return this
         }
 
-        override fun putStringSet(
-            key: String,
-            values: Set<String>
-        ): SharedPreferences.Editor {
-            createAddOp(key, Contract.TYPE_STRING_SET).put(
-                Contract.COLUMN_VALUE, values.serializedToString())
+        override fun putBoolean(key: String, value: Boolean): SharedPreferences.Editor {
+            values.add(Pair(key, value as Any))
+            removedEntries.remove(key)
             return this
         }
 
         override fun remove(key: String): SharedPreferences.Editor {
-            createRemoveOp(key)
+            val it = values.iterator()
+            while (it.hasNext()) {
+                if (it.next().first == key) {
+                    it.remove()
+                    break
+                }
+            }
+            removedEntries.add(key)
             return this
         }
 
         override fun clear(): SharedPreferences.Editor {
-            createRemoveOp("")
+            clearAllFlag = true
+            removedEntries.clear()
+            values.clear()
             return this
+        }
+
+        override fun commit(): Boolean {
+            if (clearAllFlag) {
+                val uri = resolveUri(contentUri, null, preferencesFileName)
+                context.contentResolver.delete(uri, null, null)
+            }
+            clearAllFlag = false
+
+            val values = ContentValues()
+            for (v in this.values) {
+                val uri = resolveUri(contentUri, v.first, preferencesFileName)
+                values.put(FIELD_KEY, v.first)
+                when {
+                    v.second is Boolean -> values.put(FIELD_VALUE, v.second as Boolean)
+                    v.second is Long -> values.put(FIELD_VALUE, v.second as Long)
+                    v.second is Int -> values.put(FIELD_VALUE, v.second as Int)
+                    v.second is Float -> values.put(FIELD_VALUE, v.second as Float)
+                    v.second is String -> values.put(FIELD_VALUE, v.second as String)
+                    v.second is Set<*> -> values.put(
+                        FIELD_VALUE,
+                        marshallSet(v.second as Set<String>)
+                    )
+                    else -> throw IllegalArgumentException("Unsupported type for key " + v.first)
+                }
+
+                context.contentResolver.update(uri, values, null, null)
+            }
+
+            removedEntries
+                .map { resolveUri(contentUri, it, preferencesFileName) }
+                .forEach { context.contentResolver.delete(it, null, null) }
+            return true
         }
 
         override fun apply() {
             commit()
         }
-
-        override fun commit(): Boolean {
-            val uri = preferences.baseUri.buildUpon().appendPath("").build()
-            return preferences.bulkInsert(uri, values.toTypedArray())
-        }
-
-        private fun createAddOp(key: String, type: Int): ContentValues {
-            val values = createContentValues(key, type)
-            this.values.add(values)
-            return values
-        }
-
-        private fun createRemoveOp(key: String): ContentValues {
-            // Note: Remove operations are inserted at the beginning
-            // of the list (this preserves the SharedPreferences behavior
-            // that all removes are performed before any adds)
-            val values = createContentValues(key, Contract.TYPE_NULL)
-            values.putNull(Contract.COLUMN_VALUE)
-            this.values.add(0, values)
-            return values
-        }
-
-        private fun createContentValues(key: String, type: Int): ContentValues {
-            val values = ContentValues(4)
-            values.put(Contract.COLUMN_KEY, key)
-            values.put(Contract.COLUMN_TYPE, type)
-            return values
-        }
-    }
-
-    private class PreferenceContentObserver (
-        listener: SharedPreferences.OnSharedPreferenceChangeListener,
-        handler: Handler,
-        private val preferences: MultiProcessSharedPreferences
-    ) : ContentObserver(handler) {
-        private val mListener: WeakReference<SharedPreferences.OnSharedPreferenceChangeListener> =
-            WeakReference<SharedPreferences.OnSharedPreferenceChangeListener>(listener)
-
-        override fun deliverSelfNotifications(): Boolean {
-            return true
-        }
-
-        override fun onChange(selfChange: Boolean, uri: Uri) {
-            val prefKey = uri.lastPathSegment
-
-            val listener = mListener.get()
-            if (listener == null) {
-                preferences.context.contentResolver.unregisterContentObserver(this)
-            } else {
-                listener.onSharedPreferenceChanged(preferences, prefKey)
-            }
-        }
     }
 
     companion object {
+        private val instances = HashMap<String, MultiProcessSharedPreferences>()
 
         @JvmStatic
         @JvmOverloads
         fun create(
             context: Context,
-            prefName: String = context.packageName + "_preferences" // default name
+            name: String = context.packageName + "_preferences" // default name
         ): SharedPreferences {
-            return MultiProcessSharedPreferences(context, prefName)
+            return instances.getOrPut(name) {
+                MultiProcessSharedPreferences(context.applicationContext, name)
+            }
         }
-
     }
 }

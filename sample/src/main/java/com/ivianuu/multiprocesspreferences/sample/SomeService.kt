@@ -6,6 +6,7 @@ import android.content.SharedPreferences
 import android.os.IBinder
 import com.f2prateek.rx.preferences2.RxSharedPreferences
 import com.ivianuu.multiprocesspreferences.MultiProcessSharedPreferences
+import com.ivianuu.multiprocesspreferences.MultiProcessSharedPreferencesProvider
 
 /**
  * @author Manuel Wrage (IVIanuu)

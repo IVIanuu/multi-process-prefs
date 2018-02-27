@@ -1,23 +1,14 @@
 package com.ivianuu.multiprocesspreferences
 
+/**
+ * @author Manuel Wrage (IVIanuu)
+ */
 internal object Contract {
 
-    const val COLUMN_KEY = "key"
-    const val COLUMN_TYPE = "type"
-    const val COLUMN_VALUE = "value"
+    const val FIELD_KEY = "key"
+    const val FIELD_VALUE = "value"
+    val PROJECTION = arrayOf(FIELD_KEY, FIELD_VALUE)
 
-    val ALL_COLUMNS =
-        arrayOf(
-            COLUMN_KEY,
-            COLUMN_TYPE,
-            COLUMN_VALUE
-        )
-
-    const val TYPE_BOOLEAN = 0
-    const val TYPE_FLOAT = 1
-    const val TYPE_INT = 2
-    const val TYPE_LONG = 3
-    const val TYPE_STRING = 4
-    const val TYPE_STRING_SET = 5
-    const val TYPE_NULL = 6
+    const val PREFERENCES_ENTITY = "preferences"
+    const val PREFERENCE_ENTITY = "preference"
 }

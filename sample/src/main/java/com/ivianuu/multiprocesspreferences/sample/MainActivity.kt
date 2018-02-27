@@ -7,6 +7,7 @@ import android.os.Handler
 import android.widget.Toast
 import com.f2prateek.rx.preferences2.RxSharedPreferences
 import com.ivianuu.multiprocesspreferences.MultiProcessSharedPreferences
+import com.ivianuu.multiprocesspreferences.MultiProcessSharedPreferencesProvider
 import kotlinx.android.synthetic.main.activity_main.*
 
 class MainActivity : AppCompatActivity() {
@@ -42,7 +43,7 @@ class MainActivity : AppCompatActivity() {
                 if (value.isNotEmpty()) {
                     editor.putString(key, value)
 
-                    val set = prefs.getStringSet("string_set", emptySet()).toMutableSet()
+                    val set = prefs.getStringSet("string_set", emptySet())!!.toMutableSet()
                     set.add(value)
                     editor.putStringSet("string_set", set)
                 } else {
