@@ -53,9 +53,7 @@ class MultiProcessSharedPreferences constructor(
 
     override fun getAll(): Map<String, *> {
         val values = HashMap<String, Any?>()
-        val c = context.contentResolver.query(
-            resolveUri(contentUri,null, name), PROJECTION, null, null, null
-        )
+        val c = query(null)
         if (c != null) {
             try {
                 while (c.moveToNext()) {
@@ -98,9 +96,7 @@ class MultiProcessSharedPreferences constructor(
 
 
     override fun getString(key: String, defValue: String?): String? {
-        val c = context.contentResolver.query(
-            resolveUri(contentUri, key, name), PROJECTION, null, null, null
-        )
+        val c = query(key)
         try {
             if (c == null || !c.moveToFirst()) {
                 return defValue
@@ -124,9 +120,7 @@ class MultiProcessSharedPreferences constructor(
 
 
     override fun getStringSet(key: String, defValues: Set<String>?): Set<String>? {
-        val c = context.contentResolver.query(
-            resolveUri(contentUri, key, name), PROJECTION, null, null, null
-        )
+        val c = query(key)
         try {
             if (c == null || !c.moveToFirst()) {
                 return defValues
@@ -162,9 +156,7 @@ class MultiProcessSharedPreferences constructor(
     }
 
     override fun getInt(key: String, defValue: Int): Int {
-        val c = context.contentResolver.query(
-            resolveUri(contentUri, key, name), PROJECTION, null, null, null
-        )
+        val c = query(key)
         try {
             if (c == null || !c.moveToFirst()) {
                 return defValue
@@ -191,9 +183,7 @@ class MultiProcessSharedPreferences constructor(
     }
 
     override fun getLong(key: String, defValue: Long): Long {
-        val c = context.contentResolver.query(
-            resolveUri(contentUri, key, name), PROJECTION, null, null, null
-        )
+        val c = query(key)
         try {
             if (c == null || !c.moveToFirst()) {
                 return defValue
@@ -216,9 +206,7 @@ class MultiProcessSharedPreferences constructor(
     }
 
     override fun getFloat(key: String, defValue: Float): Float {
-        val c = context.contentResolver.query(
-            resolveUri(contentUri, key, name), PROJECTION, null, null, null
-        )
+        val c = query(key)
         try {
             if (c == null || !c.moveToFirst()) {
                 return defValue
@@ -241,9 +229,7 @@ class MultiProcessSharedPreferences constructor(
     }
 
     override fun getBoolean(key: String, defValue: Boolean): Boolean {
-        val c = context.contentResolver.query(
-            resolveUri(contentUri, key, name), PROJECTION, null, null, null
-        )
+        val c = query(key)
         try {
             if (c == null || !c.moveToFirst()) {
                 return defValue
@@ -285,6 +271,11 @@ class MultiProcessSharedPreferences constructor(
 
     override fun unregisterOnSharedPreferenceChangeListener(cb: SharedPreferences.OnSharedPreferenceChangeListener) {
         listeners.remove(cb)
+    }
+
+    private fun query(key: String?): Cursor? {
+        return context.contentResolver.query(
+            resolveUri(contentUri, key, name), PROJECTION, null, null, null)
     }
 
     private class MultiProcessEditor(

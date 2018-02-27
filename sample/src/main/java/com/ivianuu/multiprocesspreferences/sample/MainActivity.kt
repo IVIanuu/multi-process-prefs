@@ -3,11 +3,9 @@ package com.ivianuu.multiprocesspreferences.sample
 import android.content.Intent
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
-import android.os.Handler
 import android.widget.Toast
 import com.f2prateek.rx.preferences2.RxSharedPreferences
 import com.ivianuu.multiprocesspreferences.MultiProcessSharedPreferences
-import com.ivianuu.multiprocesspreferences.MultiProcessSharedPreferencesProvider
 import kotlinx.android.synthetic.main.activity_main.*
 
 class MainActivity : AppCompatActivity() {
