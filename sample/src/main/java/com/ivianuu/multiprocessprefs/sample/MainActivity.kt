@@ -1,20 +1,22 @@
-package com.ivianuu.multiprocesspreferences.sample
+package com.ivianuu.multiprocessprefs.sample
 
 import android.content.Intent
-import android.support.v7.app.AppCompatActivity
+import android.content.SharedPreferences
 import android.os.Bundle
+import android.support.v7.app.AppCompatActivity
 import android.widget.Toast
-import com.f2prateek.rx.preferences2.RxSharedPreferences
-import com.ivianuu.multiprocesspreferences.MultiProcessSharedPreferences
+import com.ivianuu.multiprocessprefs.MultiProcessSharedPreferences
 import kotlinx.android.synthetic.main.activity_main.*
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceChangeListener {
 
     private val prefs by lazy {
-        MultiProcessSharedPreferences.create(this)
+        MultiProcessSharedPreferences(this)
     }
-    private val rxPrefs by lazy {
-        RxSharedPreferences.create(prefs)
+
+    override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences, key: String) {
+        val newValue = sharedPreferences.all[key]
+        d { "pref changed $key -> $newValue" }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -22,6 +24,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         startService(Intent(this, SomeService::class.java))
+        startService(Intent(this, SomeOtherService::class.java))
 
         some_switch.setOnClickListener {
             prefs.edit()
@@ -54,22 +57,12 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        rxPrefs.getBoolean("boolean").asObservable()
-            .subscribe { d { "boolean changed $it" } }
-
-        rxPrefs.getFloat("float").asObservable()
-            .subscribe { d { "float changed $it" } }
-
-        rxPrefs.getInteger("int").asObservable()
-            .subscribe { d { "int changed $it" } }
-
-        rxPrefs.getLong("long").asObservable()
-            .subscribe { d { "long changed $it" } }
-
-        rxPrefs.getString("string").asObservable()
-            .subscribe { d { "string changed $it" } }
-
-        rxPrefs.getStringSet("string_set").asObservable()
-            .subscribe { d { "string set changed $it" } }
+        prefs.registerOnSharedPreferenceChangeListener(this)
     }
+
+    override fun onDestroy() {
+        prefs.unregisterOnSharedPreferenceChangeListener(this)
+        super.onDestroy()
+    }
+
 }

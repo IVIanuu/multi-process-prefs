@@ -5,7 +5,7 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:gravity="center"
-    tools:context="com.ivianuu.multiprocesspreferences.sample.MainActivity">
+    tools:context="com.ivianuu.multiprocessprefs.sample.MainActivity">
 
 
     <Switch

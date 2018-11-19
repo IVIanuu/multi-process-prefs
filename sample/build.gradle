@@ -33,15 +33,7 @@ android {
 }
 
 dependencies {
-    // Android Support
     implementation rootProject.ext.supportAppCompat
-
-    // Kotlin
     implementation rootProject.ext.kotlinStdlib
-
-    // Multi process prefs
-    implementation project(':multiprocesspreferences')
-
-    // RxPreferences
-    implementation rootProject.ext.rxPreferences
+    implementation project(':multiprocessprefs')
 }
