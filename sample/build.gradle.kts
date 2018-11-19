@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Manuel Wrage
+ * Copyright 2018 Manuel Wrage
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,26 +14,35 @@
  * limitations under the License.
  */
 
-apply plugin: 'com.android.application'
-apply plugin: 'kotlin-android'
-apply plugin: 'kotlin-android-extensions'
+plugins {
+    id("com.android.application")
+    id("kotlin-android")
+    id("kotlin-android-extensions")
+    id("kotlin-kapt")
+}
 
 android {
-    compileSdkVersion rootProject.ext.compileSdkVersion
+    compileSdkVersion(Build.compileSdk)
+
     defaultConfig {
-        applicationId "com.ivianuu.multiprocesspreferences.sample"
-        minSdkVersion rootProject.ext.minSdkVersion
-        targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        applicationId = Build.applicationId
+        buildToolsVersion = Build.buildToolsVersion
+        minSdkVersion(Build.minSdk)
+        targetSdkVersion(Build.targetSdk)
+        versionCode = Build.versionCode
+        versionName = Build.versionName
     }
+
     androidExtensions {
-        experimental = true
+        isExperimental = true
+    }
+
+    kapt {
+        correctErrorTypes = true
     }
 }
 
 dependencies {
-    implementation rootProject.ext.supportAppCompat
-    implementation rootProject.ext.kotlinStdlib
-    implementation project(':multiprocessprefs')
+    implementation(Deps.androidxAppCompat)
+    implementation(project(":multiprocessprefs"))
 }
