@@ -34,7 +34,8 @@ import kotlin.concurrent.withLock
  */
 open class MultiProcessPrefsProvider : ContentProvider() {
 
-    protected open val isDeviceProtected get() = false
+    protected open val useDeviceProtectedStore
+        get() = MultiProcessPrefsPlugins.useDeviceProtectedStorage
 
     private val preferences =
         mutableMapOf<String, SharedPreferences>()
@@ -170,7 +171,7 @@ open class MultiProcessPrefsProvider : ContentProvider() {
         name: String,
         key: String,
         write: Boolean
-    ) = true
+    ) = MultiProcessPrefsPlugins.checkAccessHandler?.invoke(name, key, write) ?: true
 
     private fun checkAccessInternal(name: String, key: String, write: Boolean) {
         if (!checkAccess(name, "", true)) {
@@ -209,7 +210,8 @@ open class MultiProcessPrefsProvider : ContentProvider() {
     private fun getSharedPrefs(uri: Uri) = lock.withLock {
         val name = uri.pathSegments[0]
         preferences.getOrPut(name) {
-            val context = if (isDeviceProtected && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            val context =
+                if (useDeviceProtectedStore && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 context!!.createDeviceProtectedStorageContext()
             } else {
                 context!!
