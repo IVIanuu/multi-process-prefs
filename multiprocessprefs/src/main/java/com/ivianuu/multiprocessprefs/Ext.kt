@@ -17,18 +17,20 @@
 package com.ivianuu.multiprocessprefs
 
 import android.content.SharedPreferences
-import android.net.Uri
 import android.util.Log
 import org.json.JSONArray
 
-internal const val COLUMN_KEY = "key"
-internal const val COLUMN_TYPE = "type"
-internal const val COLUMN_VALUE = "value"
+internal enum class Action {
+    PUT, REMOVE, CLEAR
+}
 
-internal val PROJECTION = arrayOf(COLUMN_KEY, COLUMN_TYPE, COLUMN_VALUE)
+internal const val KEY_ACTION = "action"
+internal const val KEY_CHANGE_ID = "change_id"
+internal const val KEY_KEY = "key"
+internal const val KEY_TYPE = "type"
+internal const val KEY_VALUE = "value"
 
-internal const val PREFS_NAME = "name"
-internal const val PREF_KEY = "key"
+internal val PROJECTION = arrayOf(KEY_KEY, KEY_TYPE, KEY_VALUE)
 
 internal val Any.prefType
     get() = when (this) {
@@ -80,28 +82,9 @@ internal fun SharedPreferences.Editor.putAny(key: String, value: Any) = apply {
     }
 }
 
-internal fun String.toPrefType() = PrefType.values().first { it.key == this }
-
-internal enum class PrefType(val key: String) {
-    BOOLEAN("boolean"),
-    FLOAT("float"),
-    INT("int"),
-    LONG("long"),
-    STRING("string"),
-    STRING_SET("string_set")
+internal enum class PrefType {
+    BOOLEAN, FLOAT, INT, LONG, STRING, STRING_SET
 }
-
-internal fun getAllUri(contentUri: Uri, name: String): Uri = contentUri.buildUpon()
-    .appendPath(PREFS_NAME)
-    .appendPath(name)
-    .build()
-
-internal fun getUri(contentUri: Uri, key: String, name: String): Uri = contentUri.buildUpon()
-    .appendPath(PREFS_NAME)
-    .appendPath(name)
-    .appendPath(PREF_KEY)
-    .appendPath(key)
-    .build()
 
 internal inline fun Any.d(m: () -> String) {
     Log.d(javaClass.simpleName, m())

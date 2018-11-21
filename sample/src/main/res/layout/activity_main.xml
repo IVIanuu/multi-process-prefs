@@ -1,34 +1,101 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:gravity="center"
-    tools:context="com.ivianuu.multiprocessprefs.sample.MainActivity">
+    android:layout_height="match_parent">
 
-
-    <Switch
-        android:id="@+id/some_switch"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
-
-    <EditText
-        android:id="@+id/key_input"
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Key"/>
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center">
 
-    <EditText
-        android:id="@+id/value_input"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Value"/>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Put/Update"
+            android:textAppearance="@style/TextAppearance.AppCompat.Headline" />
 
-    <Button
-        android:id="@+id/apply"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Apply"/>
+        <EditText
+            android:id="@+id/put_key_input"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Type in the key" />
 
-</LinearLayout>
+        <EditText
+            android:id="@+id/put_value_input"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Type in the value" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <Button
+                android:id="@+id/put_boolean"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Boolean" />
+
+            <Button
+                android:id="@+id/put_float"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Float" />
+
+            <Button
+                android:id="@+id/put_int"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Int" />
+
+            <Button
+                android:id="@+id/put_long"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Long" />
+
+            <Button
+                android:id="@+id/put_string"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="String" />
+
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Remove"
+            android:layout_marginTop="32dp"
+            android:textAppearance="@style/TextAppearance.AppCompat.Headline" />
+
+        <EditText
+            android:id="@+id/remove_key_input"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Type in the key" />
+
+        <Button
+            android:id="@+id/remove"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Remove" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Clear"
+            android:layout_marginTop="32dp"
+            android:textAppearance="@style/TextAppearance.AppCompat.Headline" />
+
+        <Button
+            android:id="@+id/clear"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Clear" />
+
+    </LinearLayout>
+
+
+</ScrollView>

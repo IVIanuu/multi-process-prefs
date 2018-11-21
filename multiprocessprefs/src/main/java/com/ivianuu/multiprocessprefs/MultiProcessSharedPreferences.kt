@@ -22,6 +22,9 @@ import android.content.SharedPreferences
 import android.database.ContentObserver
 import android.net.Uri
 import android.os.Handler
+import java.util.*
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 class MultiProcessSharedPreferences private constructor(
     private val context: Context,
@@ -32,11 +35,27 @@ class MultiProcessSharedPreferences private constructor(
         override fun deliverSelfNotifications() = false
 
         override fun onChange(selfChange: Boolean, uri: Uri) {
-            val name = uri.pathSegments[1]
+            val name = uri.pathSegments[0]
+
             if (this@MultiProcessSharedPreferences.name == name) {
-                val key = uri.lastPathSegment
-                listeners.toList().forEach {
-                    it.onSharedPreferenceChanged(this@MultiProcessSharedPreferences, key)
+                val changeId = uri.pathSegments[2]
+
+                if (pendingChanges.contains(changeId)) {
+                    this@MultiProcessSharedPreferences.d { "noop already notified change" }
+                    pendingChanges.remove(changeId)
+                    return
+                }
+
+                val oldMap = map.toMap()
+
+                reloadAll()
+
+                val key = uri.pathSegments[1]
+
+                if (oldMap[key] != map[key]) {
+                    listeners.toList().forEach {
+                        it.onSharedPreferenceChanged(this@MultiProcessSharedPreferences, key)
+                    }
                 }
             }
         }
@@ -44,32 +63,70 @@ class MultiProcessSharedPreferences private constructor(
     private val listeners =
         mutableListOf<SharedPreferences.OnSharedPreferenceChangeListener>()
 
-    private val contentUri = Uri.parse("content://${context.packageName}.prefs")
+    private val uri = Uri.parse("content://${context.packageName}.prefs/$name")
+
+    private val pendingChanges = mutableSetOf<String>()
+
+    private val map = mutableMapOf<String, Any>()
+
+    private val lock = ReentrantLock()
 
     init {
-        val uri = contentUri
-            .buildUpon()
-            .appendPath(PREFS_NAME)
-            .build()
-
+        reloadAll()
         context.contentResolver.registerContentObserver(uri, true, observer)
     }
 
-    override fun getAll(): Map<String, *> {
+    override fun getAll(): Map<String, *> = lock.withLock { map.toMap() }
+
+    override fun getString(key: String, defaultValue: String) =
+        getValue(key, defaultValue)
+
+    override fun getStringSet(key: String, defaultValue: Set<String>) =
+        getValue(key, defaultValue)
+
+    override fun getInt(key: String, defaultValue: Int) =
+        getValue(key, defaultValue)
+
+    override fun getLong(key: String, defaultValue: Long) =
+        getValue(key, defaultValue)
+
+    override fun getFloat(key: String, defaultValue: Float) =
+        getValue(key, defaultValue)
+
+    override fun getBoolean(key: String, defaultValue: Boolean) =
+        getValue(key, defaultValue)
+
+    override fun contains(key: String) = lock.withLock { map.contains(key) }
+
+    override fun edit(): SharedPreferences.Editor = MultiProcessEditor()
+
+    override fun registerOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener): Unit =
+        lock.withLock {
+        if (!listeners.contains(listener)) {
+            listeners.add(listener)
+        }
+    }
+
+    override fun unregisterOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener): Unit =
+        lock.withLock {
+        listeners.remove(listener)
+    }
+
+    private fun reloadAll(): Unit = lock.withLock {
         val values = mutableMapOf<String, Any>()
 
         val c = context.contentResolver.query(
-            getAllUri(contentUri, name), PROJECTION,
+            uri, PROJECTION,
             null, null, null
         )
 
         if (c != null) {
             try {
                 while (c.moveToNext()) {
-                    val key = c.getString(c.getColumnIndexOrThrow(COLUMN_KEY))
-                    val prefType = c.getString(c.getColumnIndexOrThrow(COLUMN_TYPE)).toPrefType()
+                    val key = c.getString(c.getColumnIndexOrThrow(KEY_KEY))
+                    val prefType = PrefType.valueOf(c.getString(c.getColumnIndexOrThrow(KEY_TYPE)))
                     val value =
-                        c.getString(c.getColumnIndexOrThrow(COLUMN_VALUE)).deserialize(prefType)
+                        c.getString(c.getColumnIndexOrThrow(KEY_VALUE)).deserialize(prefType)
                     values[key] = value
                 }
             } finally {
@@ -82,80 +139,14 @@ class MultiProcessSharedPreferences private constructor(
             }
         }
 
-        return values
+        map.clear()
+        map.putAll(values)
     }
 
-    override fun getString(key: String, defaultValue: String) =
-        getValue(key, defaultValue, PrefType.STRING)
+    private fun <T> getValue(key: String, defaultValue: T) =
+        lock.withLock { map.getOrElse(key) { defaultValue } as T }
 
-    override fun getStringSet(key: String, defaultValue: Set<String>) =
-        getValue(key, defaultValue, PrefType.STRING_SET)
-
-    override fun getInt(key: String, defaultValue: Int) =
-        getValue(key, defaultValue, PrefType.INT)
-
-    override fun getLong(key: String, defaultValue: Long) =
-        getValue(key, defaultValue, PrefType.LONG)
-
-    override fun getFloat(key: String, defaultValue: Float) =
-        getValue(key, defaultValue, PrefType.FLOAT)
-
-    override fun getBoolean(key: String, defaultValue: Boolean) =
-        getValue(key, defaultValue, PrefType.BOOLEAN)
-
-    override fun contains(key: String) = all.containsKey(key)
-
-    override fun edit(): SharedPreferences.Editor = MultiProcessEditor(context, name, contentUri)
-
-    override fun registerOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener) {
-        if (!listeners.contains(listener)) {
-            listeners.add(listener)
-        }
-    }
-
-    override fun unregisterOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener) {
-        listeners.remove(listener)
-    }
-
-    private fun <T> getValue(
-        key: String,
-        defaultValue: T,
-        requiredPrefType: PrefType
-    ): T {
-        val c = context.contentResolver.query(
-            getUri(contentUri, key, name), PROJECTION, null, null, null
-        )
-
-        try {
-            return if (c != null && c.moveToFirst()) {
-                val prefType = c.getString(c.getColumnIndexOrThrow(COLUMN_TYPE)).toPrefType()
-
-                if (prefType == requiredPrefType) {
-                    c.getString(c.getColumnIndexOrThrow(COLUMN_VALUE))
-                        .deserialize(prefType) as T
-                } else {
-                    defaultValue // todo maybe throw to mirror the original prefs behavior
-                }
-            } else {
-                defaultValue
-            }
-        } finally {
-            if (c != null) {
-                try {
-                    c.close()
-                } catch (e: Exception) {
-                    // Ignore
-                }
-
-            }
-        }
-    }
-
-    private class MultiProcessEditor(
-        private val context: Context,
-        private val name: String,
-        private val contentUri: Uri
-    ) : SharedPreferences.Editor {
+    private inner class MultiProcessEditor : SharedPreferences.Editor {
 
         private val values = mutableMapOf<String, Any>()
         private var clear = false
@@ -175,32 +166,76 @@ class MultiProcessSharedPreferences private constructor(
         override fun remove(key: String) = putValue(key, this)
 
         override fun clear() = apply {
-            clear = true
-            values.clear()
+            lock.withLock {
+                clear = true
+                values.clear()
+            }
         }
 
-        override fun commit(): Boolean {
+        override fun commit() = lock.withLock {
             if (clear) {
-                val uri = getAllUri(contentUri, name)
-                context.contentResolver.delete(uri, null, null)
+                val changeId = UUID.randomUUID().toString()
+                val contentValues = ContentValues()
+                contentValues.put(KEY_ACTION, Action.CLEAR.toString())
+                contentValues.put(KEY_CHANGE_ID, changeId)
+                context.contentResolver.update(uri, contentValues, null, null)
             }
 
+            val changedKeys = mutableSetOf<String>()
+            
             values.forEach { (key, value) ->
-                val uri = getUri(contentUri, key, name)
-
                 // "this" means that the value should be removed
                 if (value != this) {
+                    val changeId = UUID.randomUUID().toString()
+                    pendingChanges.add(changeId)
+
                     val contentValues = ContentValues()
-                    contentValues.put(COLUMN_KEY, key)
-                    contentValues.put(COLUMN_VALUE, value.serialize())
-                    contentValues.put(COLUMN_TYPE, value.prefType.key)
+
+                    contentValues.put(KEY_ACTION, Action.PUT.toString())
+                    contentValues.put(KEY_CHANGE_ID, changeId)
+                    contentValues.put(KEY_KEY, key)
+                    contentValues.put(KEY_VALUE, value.serialize())
+                    contentValues.put(KEY_TYPE, value.prefType.toString())
+
+                    if (map[key] != value) {
+                        changedKeys.add(key)
+                    }
+
+                    map[key] = value
+
                     context.contentResolver.update(uri, contentValues, null, null)
                 } else {
-                    context.contentResolver.delete(uri, null, null)
+                    if (map.contains(key)) {
+                        val changeId = UUID.randomUUID().toString()
+                        pendingChanges.add(changeId)
+
+                        val contentValues = ContentValues()
+
+                        contentValues.put(KEY_ACTION, Action.REMOVE.toString())
+                        contentValues.put(KEY_CHANGE_ID, changeId)
+                        contentValues.put(KEY_KEY, key)
+
+                        changedKeys.add(key)
+                        map.remove(key)
+                        context.contentResolver.update(uri, contentValues, null, null)
+                    }
                 }
             }
 
-            return true
+            if (changedKeys.isNotEmpty()) {
+                val listeners = listeners.toList()
+                changedKeys.forEach { key ->
+                    d { "notify local change $key" }
+                    listeners.forEach {
+                        it.onSharedPreferenceChanged(
+                            this@MultiProcessSharedPreferences,
+                            key
+                        )
+                    }
+                }
+            }
+
+            true
         }
 
         override fun apply() {
@@ -208,7 +243,7 @@ class MultiProcessSharedPreferences private constructor(
         }
 
         private fun putValue(key: String, value: Any) = apply {
-            values[key] = value
+            lock.withLock { values[key] = value }
         }
     }
 

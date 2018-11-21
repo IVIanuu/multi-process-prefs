@@ -19,7 +19,7 @@ package com.ivianuu.multiprocessprefs.sample
 import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Bundle
-import android.widget.Toast
+import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import com.ivianuu.multiprocessprefs.MultiProcessSharedPreferences
 import kotlinx.android.synthetic.main.activity_main.*
@@ -42,36 +42,18 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
         startService(Intent(this, SomeService::class.java))
         startService(Intent(this, SomeOtherService::class.java))
 
-        some_switch.setOnClickListener {
-            prefs.edit()
-                .putBoolean("boolean", some_switch.isChecked)
-                .putFloat("float", prefs.getFloat("float", 0f) + 1f)
-                .putInt("int", prefs.getInt("int", 0) + 1)
-                .putLong("long", prefs.getLong("long", 0L) + 1L)
-                .apply()
+        put_boolean.prefClickListener { key, value -> putBoolean(key, value.toBoolean()) }
+        put_float.prefClickListener { key, value -> putFloat(key, value.toFloat()) }
+        put_int.prefClickListener { key, value -> putInt(key, value.toInt()) }
+        put_long.prefClickListener { key, value -> putLong(key, value.toLong()) }
+        put_string.prefClickListener { key, value -> putString(key, value) }
+
+        remove.setOnClickListener {
+            val key = remove_key_input.text.toString()
+            prefs.edit().remove(key).apply()
         }
 
-        apply.setOnClickListener {
-            val key = key_input.text?.toString()
-            val value = value_input.text?.toString()
-            if (key != null && key.isNotEmpty()
-                && value != null) {
-                val editor = prefs.edit()
-                if (value.isNotEmpty()) {
-                    editor.putString(key, value)
-
-                    val set = prefs.getStringSet("string_set", emptySet()).toMutableSet()
-                    set.add(value)
-                    editor.putStringSet("string_set", set)
-                } else {
-                    editor.remove(key)
-                }
-
-                editor.apply()
-            } else {
-                Toast.makeText(this, "Invalid input!", Toast.LENGTH_SHORT).show()
-            }
-        }
+        clear.setOnClickListener { prefs.edit().clear().apply() }
 
         prefs.registerOnSharedPreferenceChangeListener(this)
     }
@@ -79,6 +61,18 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
     override fun onDestroy() {
         prefs.unregisterOnSharedPreferenceChangeListener(this)
         super.onDestroy()
+    }
+
+    private fun View.prefClickListener(block: SharedPreferences.Editor.(String, String) -> Unit) {
+        setOnClickListener {
+            val key = put_key_input.text.toString()
+            val value = put_value_input.text.toString()
+            prefs.edit()
+                .apply { block(key, value) }
+                .apply()
+            put_key_input.setText("")
+            put_value_input.setText("")
+        }
     }
 
 }
