@@ -22,6 +22,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.database.MatrixCursor
 import android.net.Uri
+import android.util.Base64
 import java.util.*
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
@@ -89,7 +90,10 @@ class MultiProcessPrefsProvider : ContentProvider(),
                 sharedPrefs.edit().putAny(key, value).apply()
 
                 context!!.contentResolver.notifyChange(
-                    getChangeUri(key, name, changeId), null
+                    getChangeUri(
+                        key, name, changeId,
+                        values.getAsString(KEY_VALUE), prefType.toString()
+                    ), null
                 )
             }
             Action.REMOVE -> {
@@ -102,7 +106,7 @@ class MultiProcessPrefsProvider : ContentProvider(),
 
                 // should we dispatch this always? // todo
                 context!!.contentResolver.notifyChange(
-                    getChangeUri(key, name, changeId), null
+                    getChangeUri(key, name, changeId, null, null), null
                 )
             }
             Action.CLEAR -> {
@@ -128,16 +132,35 @@ class MultiProcessPrefsProvider : ContentProvider(),
                 .first { it.second == sharedPreferences }
                 .first
 
-            val uri = getChangeUri(key, name, UUID.randomUUID().toString())
+            val value = sharedPreferences.all[key]?.serialize()
+            val prefType = value?.prefType
+
+            val uri = getChangeUri(
+                key, name,
+                UUID.randomUUID().toString(), value, prefType.toString()
+            )
             context!!.contentResolver.notifyChange(uri, null)
         }
     }
 
-    private fun getChangeUri(key: String, name: String, changeId: String): Uri =
+    private fun getChangeUri(
+        key: String,
+        name: String,
+        changeId: String,
+        value: String?,
+        prefType: String?
+    ): Uri =
         contentUri.buildUpon()
             .appendPath(name)
             .appendPath(key)
             .appendPath(changeId)
+            .apply {
+                value?.let {
+                    val encoded = Base64.encodeToString(it.toByteArray(), Base64.DEFAULT)
+                    appendPath(encoded)
+                }
+            }
+            .apply { prefType?.let { appendPath(it) } }
             .build()
 
     private fun getSharedPrefs(uri: Uri) = lock.withLock {
