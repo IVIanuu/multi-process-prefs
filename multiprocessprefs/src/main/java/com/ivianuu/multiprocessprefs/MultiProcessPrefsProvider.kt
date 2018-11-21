@@ -22,14 +22,19 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.database.MatrixCursor
 import android.net.Uri
+import android.os.Build
 import android.util.Base64
 import org.json.JSONObject
 import java.util.*
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
-class MultiProcessPrefsProvider : ContentProvider(),
-    SharedPreferences.OnSharedPreferenceChangeListener {
+/**
+ * A [ContentProvider] for [SharedPreferences]
+ */
+open class MultiProcessPrefsProvider : ContentProvider() {
+
+    protected open val isDeviceProtected get() = false
 
     private val preferences =
         mutableMapOf<String, SharedPreferences>()
@@ -40,91 +45,11 @@ class MultiProcessPrefsProvider : ContentProvider(),
 
     private val lock = ReentrantLock()
 
-    override fun onCreate() = true
-
-    override fun query(
-        uri: Uri,
-        projection: Array<String>?,
-        selection: String?,
-        selectionArgs: Array<String>?,
-        sortOrder: String?
-    ) = lock.withLock {
-        val map = getSharedPrefs(uri).all
-
-        MatrixCursor(PROJECTION).apply {
-            map.forEach { (key, value) ->
-                newRow()
-                    .add(key)
-                    .add(value!!.prefType.toString())
-                    .add(value.serialize())
-            }
-        }
-    }
-
-    override fun insert(uri: Uri, values: ContentValues): Uri? {
-        throw IllegalArgumentException("unsupported operation use update instead")
-    }
-
-    override fun delete(uri: Uri, selection: String?, selectionArgs: Array<String>?): Int {
-        throw IllegalArgumentException("unsupported operation use update instead")
-    }
-
-    override fun update(
-        uri: Uri,
-        values: ContentValues,
-        selection: String?,
-        selectionArgs: Array<String>?
-    ) = lock.withLock {
-        val action = Action.valueOf(values.getAsString(KEY_ACTION))
-        val name = uri.pathSegments[0]
-        val changeId = values.getAsString(KEY_CHANGE_ID)
-
-        val sharedPrefs = getSharedPrefs(uri)
-
-        when (action) {
-            Action.PUT -> {
-                val key = values.getAsString(KEY_KEY)
-                val prefType = PrefType.valueOf(values.getAsString(KEY_TYPE))
-                val value = values.getAsString(KEY_VALUE).deserialize(prefType)
-
-                pendingChanges[key] = value
-                sharedPrefs.edit().putAny(key, value).apply()
-
-                context!!.contentResolver.notifyChange(
-                    getChangeUri(
-                        key, name, changeId,
-                        values.getAsString(KEY_VALUE), prefType
-                    ), null
-                )
-            }
-            Action.REMOVE -> {
-                val key = values.getAsString(KEY_KEY)
-
-                if (sharedPrefs.contains(key)) {
-                    pendingChanges[key] = this
-                    sharedPrefs.edit().remove(key).apply()
-                }
-
-                // should we dispatch this always? // todo
-                context!!.contentResolver.notifyChange(
-                    getChangeUri(key, name, changeId, null, PrefType.STRING), null
-                )
-            }
-            Action.CLEAR -> {
-                sharedPrefs.edit().clear().apply()
-                context!!.contentResolver.notifyChange(
-                    getChangeUri(KEY_ALL, name, changeId, null, PrefType.STRING), null
-                )
-            }
-        }
-
-        0
-    }
-
-    override fun getType(uri: Uri): String? = null
-
-    override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences, key: String) {
-        lock.withLock {
+    private val changeListener = object : SharedPreferences.OnSharedPreferenceChangeListener {
+        override fun onSharedPreferenceChanged(
+            sharedPreferences: SharedPreferences,
+            key: String
+        ): Unit = lock.withLock {
             val pendingChange = pendingChanges.remove(key)
 
             val newValue = sharedPreferences.all[key]
@@ -144,6 +69,112 @@ class MultiProcessPrefsProvider : ContentProvider(),
                 UUID.randomUUID().toString(), value?.serialize(), prefType
             )
             context!!.contentResolver.notifyChange(uri, null)
+        }
+    }
+
+    final override fun onCreate() = true
+
+    final override fun query(
+        uri: Uri,
+        projection: Array<String>?,
+        selection: String?,
+        selectionArgs: Array<String>?,
+        sortOrder: String?
+    ) = lock.withLock {
+        val name = uri.pathSegments[0]
+
+        checkAccessInternal(name, "", false)
+
+        val map = getSharedPrefs(uri).all
+
+        MatrixCursor(PROJECTION).apply {
+            map.forEach { (key, value) ->
+                newRow()
+                    .add(key)
+                    .add(value!!.prefType.toString())
+                    .add(value.serialize())
+            }
+        }
+    }
+
+    final override fun insert(uri: Uri, values: ContentValues): Uri? {
+        throw IllegalArgumentException("unsupported operation use update instead")
+    }
+
+    final override fun delete(uri: Uri, selection: String?, selectionArgs: Array<String>?): Int {
+        throw IllegalArgumentException("unsupported operation use update instead")
+    }
+
+    final override fun update(
+        uri: Uri,
+        values: ContentValues,
+        selection: String?,
+        selectionArgs: Array<String>?
+    ) = lock.withLock {
+        val action = Action.valueOf(values.getAsString(KEY_ACTION))
+        val name = uri.pathSegments[0]
+        val changeId = values.getAsString(KEY_CHANGE_ID)
+
+        val sharedPrefs = getSharedPrefs(uri)
+
+        when (action) {
+            Action.PUT -> {
+                val key = values.getAsString(KEY_KEY)
+
+                checkAccessInternal(name, key, true)
+
+                val prefType = PrefType.valueOf(values.getAsString(KEY_TYPE))
+                val value = values.getAsString(KEY_VALUE).deserialize(prefType)
+
+                pendingChanges[key] = value
+                sharedPrefs.edit().putAny(key, value).apply()
+
+                context!!.contentResolver.notifyChange(
+                    getChangeUri(
+                        key, name, changeId,
+                        values.getAsString(KEY_VALUE), prefType
+                    ), null
+                )
+            }
+            Action.REMOVE -> {
+                val key = values.getAsString(KEY_KEY)
+
+                checkAccessInternal(name, key, true)
+
+                if (sharedPrefs.contains(key)) {
+                    pendingChanges[key] = this
+                    sharedPrefs.edit().remove(key).apply()
+                }
+
+                // should we dispatch this always? // todo
+                context!!.contentResolver.notifyChange(
+                    getChangeUri(key, name, changeId, null, PrefType.STRING), null
+                )
+            }
+            Action.CLEAR -> {
+                checkAccessInternal(name, "", true)
+
+                sharedPrefs.edit().clear().apply()
+                context!!.contentResolver.notifyChange(
+                    getChangeUri(KEY_ALL, name, changeId, null, PrefType.STRING), null
+                )
+            }
+        }
+
+        0
+    }
+
+    final override fun getType(uri: Uri): String? = null
+
+    protected open fun checkAccess(
+        name: String,
+        key: String,
+        write: Boolean
+    ) = true
+
+    private fun checkAccessInternal(name: String, key: String, write: Boolean) {
+        if (!checkAccess(name, "", true)) {
+            throw IllegalAccessException("illegal access")
         }
     }
 
@@ -178,8 +209,14 @@ class MultiProcessPrefsProvider : ContentProvider(),
     private fun getSharedPrefs(uri: Uri) = lock.withLock {
         val name = uri.pathSegments[0]
         preferences.getOrPut(name) {
-            context!!.getSharedPreferences(name, Context.MODE_PRIVATE).apply {
-                registerOnSharedPreferenceChangeListener(this@MultiProcessPrefsProvider)
+            val context = if (isDeviceProtected && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                context!!.createDeviceProtectedStorageContext()
+            } else {
+                context!!
+            }
+
+            context.getSharedPreferences(name, Context.MODE_PRIVATE).apply {
+                registerOnSharedPreferenceChangeListener(changeListener)
             }
         }
     }
