@@ -159,13 +159,17 @@ class MultiProcessPrefsProvider : ContentProvider(),
             .appendPath(key)
             .appendPath(changeId)
             .apply {
+                // wrap the value inside a json object to support empty strings
                 val jsonObject = JSONObject().apply {
                     if (value != null) {
                         put(KEY_VALUE, value)
                     }
                 }
+
+                // encode the value to support special chars
                 val encoded =
                     Base64.encodeToString(jsonObject.toString().toByteArray(), Base64.DEFAULT)
+
                 appendPath(encoded)
             }
             .appendPath(prefType.toString())

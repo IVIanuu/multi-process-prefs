@@ -37,13 +37,15 @@ class MultiProcessSharedPreferences private constructor(
     private val observer = object : ContentObserver(Handler()) {
         override fun deliverSelfNotifications() = false
 
-        override fun onChange(selfChange: Boolean, uri: Uri) {
+        override fun onChange(selfChange: Boolean, uri: Uri): Unit = lock.withLock {
             val name = uri.pathSegments[0]
 
+            // not related to us
             if (this@MultiProcessSharedPreferences.name != name) return
 
             val changeId = uri.pathSegments[2]
 
+            // self change?
             if (pendingChanges.contains(changeId)) {
                 pendingChanges.remove(changeId)
                 return
@@ -51,29 +53,33 @@ class MultiProcessSharedPreferences private constructor(
 
             val key = uri.pathSegments[1]
 
+            // someone else cleared the all values so just clear the map
             if (key == KEY_ALL) {
                 map.clear()
                 return
             }
 
-            val oldValue = map[key]
-
+            // get the new value
             val decodedNewValue = String(Base64.decode(uri.pathSegments[3], Base64.DEFAULT))
             val newValueJson = JSONObject(decodedNewValue)
-
             val prefType = PrefType.valueOf(uri.pathSegments[4])
             val newValue = newValueJson.optString(KEY_VALUE)?.deserialize(prefType)
 
-            if (oldValue != newValue) {
-                if (newValue != null) {
-                    map[key] = newValue
-                } else {
-                    map.remove(key)
-                }
+            val oldValue = map[key]
 
-                listeners.toList().forEach {
-                    it.onSharedPreferenceChanged(this@MultiProcessSharedPreferences, key)
-                }
+            // no op
+            if (oldValue == newValue) return
+
+            // reflect the change in our local map
+            if (newValue != null) {
+                map[key] = newValue
+            } else {
+                map.remove(key)
+            }
+
+            // notify listeners
+            listeners.toList().forEach {
+                it.onSharedPreferenceChanged(this@MultiProcessSharedPreferences, key)
             }
         }
     }
