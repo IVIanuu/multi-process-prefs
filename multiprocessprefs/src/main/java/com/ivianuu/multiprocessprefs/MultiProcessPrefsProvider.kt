@@ -122,12 +122,7 @@ class MultiProcessPrefsProvider : ContentProvider(),
             val newValue = sharedPreferences.all[key]
 
             // "this" indicates that the value where removed
-            if ((pendingChange == newValue) || (pendingChange == this && newValue == null)) {
-                d { "already notified change $key value $newValue" }
-                return
-            } else {
-                d { "not notified yet $key value $newValue" }
-            }
+            if ((pendingChange == newValue) || (pendingChange == this && newValue == null)) return
 
             val name = preferences.toList()
                 .first { it.second == sharedPreferences }

@@ -42,7 +42,6 @@ class MultiProcessSharedPreferences private constructor(
                 val changeId = uri.pathSegments[2]
 
                 if (pendingChanges.contains(changeId)) {
-                    this@MultiProcessSharedPreferences.d { "noop already notified change" }
                     pendingChanges.remove(changeId)
                     return
                 }
@@ -226,7 +225,6 @@ class MultiProcessSharedPreferences private constructor(
             if (changedKeys.isNotEmpty()) {
                 val listeners = listeners.toList()
                 changedKeys.forEach { key ->
-                    d { "notify local change $key" }
                     listeners.forEach {
                         it.onSharedPreferenceChanged(
                             this@MultiProcessSharedPreferences,
