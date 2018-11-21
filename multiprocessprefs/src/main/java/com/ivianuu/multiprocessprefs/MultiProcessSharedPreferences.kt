@@ -194,7 +194,6 @@ class MultiProcessSharedPreferences private constructor(
                     contentValues.put(COLUMN_KEY, key)
                     contentValues.put(COLUMN_VALUE, value.serialize())
                     contentValues.put(COLUMN_TYPE, value.prefType.key)
-
                     context.contentResolver.update(uri, contentValues, null, null)
                 } else {
                     context.contentResolver.delete(uri, null, null)

@@ -54,7 +54,7 @@ class MultiProcessPrefsProvider : ContentProvider(),
         sortOrder: String?
     ): Cursor? {
         val code = uriMatcher.match(uri)
-        val map = getSharedPreferences(uri).all
+        val map = getSharedPrefs(uri).all
 
         return when (code) {
             CODE_ALL -> {
@@ -93,15 +93,16 @@ class MultiProcessPrefsProvider : ContentProvider(),
 
     override fun delete(uri: Uri, selection: String?, selectionArgs: Array<String>?): Int {
         var count = 0
+        val sharedPrefs = getSharedPrefs(uri)
         when (uriMatcher.match(uri)) {
             CODE_ALL -> {
-                count = getSharedPreferences(uri).all.size
-                getSharedPreferences(uri).edit().clear().apply()
+                count = sharedPrefs.all.size
+                sharedPrefs.edit().clear().apply()
             }
             CODE_ENTRY -> {
                 val key = uri.pathSegments[3]
-                if (getSharedPreferences(uri).contains(key)) {
-                    getSharedPreferences(uri).edit().remove(key).apply()
+                if (sharedPrefs.contains(key)) {
+                    sharedPrefs.edit().remove(key).apply()
                     count = 0
                 }
             }
@@ -120,13 +121,11 @@ class MultiProcessPrefsProvider : ContentProvider(),
             throw IllegalArgumentException("unsupported operation $uri, $values")
         }
 
-        val editor = getSharedPreferences(uri).edit()
-
         val key = values.getAsString(COLUMN_KEY)
         val prefType = values.getAsString(COLUMN_TYPE).toPrefType()
         val value = values.getAsString(COLUMN_VALUE).deserialize(prefType)
 
-        editor.putAny(key, value).apply()
+        getSharedPrefs(uri).edit().putAny(key, value).apply()
 
         return 1
     }
@@ -143,7 +142,7 @@ class MultiProcessPrefsProvider : ContentProvider(),
     }
 
     @Synchronized
-    private fun getSharedPreferences(uri: Uri): SharedPreferences {
+    private fun getSharedPrefs(uri: Uri): SharedPreferences {
         val name = uri.pathSegments[1]
         return preferences.getOrPut(name) {
             context!!.getSharedPreferences(name, Context.MODE_PRIVATE).apply {
