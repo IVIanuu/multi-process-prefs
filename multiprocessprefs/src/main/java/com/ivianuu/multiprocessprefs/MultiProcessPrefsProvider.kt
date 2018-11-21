@@ -33,12 +33,12 @@ class MultiProcessPrefsProvider : ContentProvider(),
             addURI(
                 authority,
                 "$PREFS_NAME/*/",
-                TYPE_ALL
+                CODE_ALL
             )
             addURI(
                 authority,
                 "$PREFS_NAME/*/$PREF_KEY/*",
-                TYPE_ENTRY
+                CODE_ENTRY
             )
         }
     }
@@ -53,11 +53,11 @@ class MultiProcessPrefsProvider : ContentProvider(),
         selectionArgs: Array<String>?,
         sortOrder: String?
     ): Cursor? {
-        val type = uriMatcher.match(uri)
+        val code = uriMatcher.match(uri)
         val map = getSharedPreferences(uri).all
 
-        return when (type) {
-            TYPE_ALL -> {
+        return when (code) {
+            CODE_ALL -> {
                 MatrixCursor(PROJECTION).apply {
                     map.forEach { (key, value) ->
                         newRow()
@@ -67,7 +67,7 @@ class MultiProcessPrefsProvider : ContentProvider(),
                     }
                 }
             }
-            TYPE_ENTRY -> {
+            CODE_ENTRY -> {
                 val key = uri.pathSegments[3]
                 if (map.containsKey(key)) {
                     val value = map[key]
@@ -94,11 +94,11 @@ class MultiProcessPrefsProvider : ContentProvider(),
     override fun delete(uri: Uri, selection: String?, selectionArgs: Array<String>?): Int {
         var count = 0
         when (uriMatcher.match(uri)) {
-            TYPE_ALL -> {
+            CODE_ALL -> {
                 count = getSharedPreferences(uri).all.size
                 getSharedPreferences(uri).edit().clear().apply()
             }
-            TYPE_ENTRY -> {
+            CODE_ENTRY -> {
                 val key = uri.pathSegments[3]
                 if (getSharedPreferences(uri).contains(key)) {
                     getSharedPreferences(uri).edit().remove(key).apply()
@@ -116,7 +116,7 @@ class MultiProcessPrefsProvider : ContentProvider(),
         selection: String?,
         selectionArgs: Array<String>?
     ): Int {
-        if (uriMatcher.match(uri) != TYPE_ENTRY) {
+        if (uriMatcher.match(uri) != CODE_ENTRY) {
             throw IllegalArgumentException("unsupported operation $uri, $values")
         }
 
@@ -135,13 +135,11 @@ class MultiProcessPrefsProvider : ContentProvider(),
 
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences, key: String) {
         val name = preferences.toList()
-            .firstOrNull { it.second == sharedPreferences }
-            ?.first
+            .first { it.second == sharedPreferences }
+            .first
 
-        if (name != null) {
-            val uri = getUri(contentUri, key, name)
-            context!!.contentResolver.notifyChange(uri, null)
-        }
+        val uri = getUri(contentUri, key, name)
+        context!!.contentResolver.notifyChange(uri, null)
     }
 
     @Synchronized
@@ -155,7 +153,7 @@ class MultiProcessPrefsProvider : ContentProvider(),
     }
 
     private companion object {
-        private const val TYPE_ALL = 1
-        private const val TYPE_ENTRY = 2
+        private const val CODE_ALL = 1
+        private const val CODE_ENTRY = 2
     }
 }
