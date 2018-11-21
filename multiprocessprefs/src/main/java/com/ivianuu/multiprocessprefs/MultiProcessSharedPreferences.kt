@@ -28,6 +28,9 @@ import java.util.*
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
+/**
+ * Multi process [SharedPreferences] which are talking to a [MultiProcessPrefsProvider]
+ */
 class MultiProcessSharedPreferences private constructor(
     private val context: Context,
     val packageName: String,
@@ -125,15 +128,15 @@ class MultiProcessSharedPreferences private constructor(
 
     override fun registerOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener): Unit =
         lock.withLock {
-        if (!listeners.contains(listener)) {
-            listeners.add(listener)
+            if (!listeners.contains(listener)) {
+                listeners.add(listener)
+            }
         }
-    }
 
     override fun unregisterOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener): Unit =
         lock.withLock {
-        listeners.remove(listener)
-    }
+            listeners.remove(listener)
+        }
 
     private fun reloadAll(): Unit = lock.withLock {
         val values = mutableMapOf<String, Any>()
@@ -208,7 +211,7 @@ class MultiProcessSharedPreferences private constructor(
             }
 
             val changedKeys = mutableSetOf<String>()
-            
+
             values.forEach { (key, value) ->
                 // "this" means that the value should be removed
                 if (value != this) {
@@ -278,6 +281,9 @@ class MultiProcessSharedPreferences private constructor(
 
         private val instancesLock = ReentrantLock()
 
+        /**
+         * Returns a new [MultiProcessSharedPreferences] instance
+         */
         operator fun invoke(
             context: Context,
             packageName: String = context.packageName,
