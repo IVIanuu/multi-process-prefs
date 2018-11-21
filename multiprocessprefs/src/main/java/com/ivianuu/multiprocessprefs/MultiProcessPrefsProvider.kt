@@ -23,6 +23,7 @@ import android.content.SharedPreferences
 import android.database.MatrixCursor
 import android.net.Uri
 import android.util.Base64
+import org.json.JSONObject
 import java.util.*
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
@@ -92,7 +93,7 @@ class MultiProcessPrefsProvider : ContentProvider(),
                 context!!.contentResolver.notifyChange(
                     getChangeUri(
                         key, name, changeId,
-                        values.getAsString(KEY_VALUE), prefType.toString()
+                        values.getAsString(KEY_VALUE), prefType
                     ), null
                 )
             }
@@ -106,11 +107,14 @@ class MultiProcessPrefsProvider : ContentProvider(),
 
                 // should we dispatch this always? // todo
                 context!!.contentResolver.notifyChange(
-                    getChangeUri(key, name, changeId, null, null), null
+                    getChangeUri(key, name, changeId, null, PrefType.STRING), null
                 )
             }
             Action.CLEAR -> {
                 sharedPrefs.edit().clear().apply()
+                context!!.contentResolver.notifyChange(
+                    getChangeUri(KEY_ALL, name, changeId, null, PrefType.STRING), null
+                )
             }
         }
 
@@ -132,12 +136,12 @@ class MultiProcessPrefsProvider : ContentProvider(),
                 .first { it.second == sharedPreferences }
                 .first
 
-            val value = sharedPreferences.all[key]?.serialize()
-            val prefType = value?.prefType
+            val value = sharedPreferences.all[key]
+            val prefType = value?.prefType ?: PrefType.STRING
 
             val uri = getChangeUri(
                 key, name,
-                UUID.randomUUID().toString(), value, prefType.toString()
+                UUID.randomUUID().toString(), value?.serialize(), prefType
             )
             context!!.contentResolver.notifyChange(uri, null)
         }
@@ -148,19 +152,23 @@ class MultiProcessPrefsProvider : ContentProvider(),
         name: String,
         changeId: String,
         value: String?,
-        prefType: String?
+        prefType: PrefType
     ): Uri =
         contentUri.buildUpon()
             .appendPath(name)
             .appendPath(key)
             .appendPath(changeId)
             .apply {
-                value?.let {
-                    val encoded = Base64.encodeToString(it.toByteArray(), Base64.DEFAULT)
-                    appendPath(encoded)
+                val jsonObject = JSONObject().apply {
+                    if (value != null) {
+                        put(KEY_VALUE, value)
+                    }
                 }
+                val encoded =
+                    Base64.encodeToString(jsonObject.toString().toByteArray(), Base64.DEFAULT)
+                appendPath(encoded)
             }
-            .apply { prefType?.let { appendPath(it) } }
+            .appendPath(prefType.toString())
             .build()
 
     private fun getSharedPrefs(uri: Uri) = lock.withLock {

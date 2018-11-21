@@ -20,6 +20,8 @@ import android.content.SharedPreferences
 import android.util.Log
 import org.json.JSONArray
 
+internal const val KEY_ALL = "?=*"
+
 internal enum class Action {
     PUT, REMOVE, CLEAR
 }

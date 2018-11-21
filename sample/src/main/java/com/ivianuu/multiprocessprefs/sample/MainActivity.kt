@@ -33,6 +33,7 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences, key: String) {
         val newValue = sharedPreferences.all[key]
         d { "pref changed $key -> $newValue" }
+        d { "prefs ${sharedPreferences.all}" }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

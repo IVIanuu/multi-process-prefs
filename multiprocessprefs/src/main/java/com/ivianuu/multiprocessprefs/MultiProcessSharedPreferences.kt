@@ -23,6 +23,7 @@ import android.database.ContentObserver
 import android.net.Uri
 import android.os.Handler
 import android.util.Base64
+import org.json.JSONObject
 import java.util.*
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
@@ -50,15 +51,18 @@ class MultiProcessSharedPreferences private constructor(
 
             val key = uri.pathSegments[1]
 
+            if (key == KEY_ALL) {
+                map.clear()
+                return
+            }
+
             val oldValue = map[key]
 
-            val newValue = if (uri.pathSegments.size == 5) {
-                val prefType = PrefType.valueOf(uri.pathSegments[4])
-                val decodedValue = String(Base64.decode(uri.pathSegments[3], Base64.DEFAULT))
-                decodedValue.deserialize(prefType)
-            } else {
-                null
-            }
+            val decodedNewValue = String(Base64.decode(uri.pathSegments[3], Base64.DEFAULT))
+            val newValueJson = JSONObject(decodedNewValue)
+
+            val prefType = PrefType.valueOf(uri.pathSegments[4])
+            val newValue = newValueJson.optString(KEY_VALUE)?.deserialize(prefType)
 
             if (oldValue != newValue) {
                 if (newValue != null) {
@@ -191,6 +195,9 @@ class MultiProcessSharedPreferences private constructor(
                 val contentValues = ContentValues()
                 contentValues.put(KEY_ACTION, Action.CLEAR.toString())
                 contentValues.put(KEY_CHANGE_ID, changeId)
+
+                map.clear()
+
                 context.contentResolver.update(uri, contentValues, null, null)
             }
 
