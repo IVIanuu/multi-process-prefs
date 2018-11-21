@@ -22,6 +22,7 @@ import android.content.SharedPreferences
 import android.database.ContentObserver
 import android.net.Uri
 import android.os.Handler
+import android.os.Looper
 import android.util.Base64
 import org.json.JSONObject
 import java.util.*
@@ -37,7 +38,7 @@ class MultiProcessSharedPreferences private constructor(
     val name: String
 ) : SharedPreferences {
 
-    private val observer = object : ContentObserver(Handler()) {
+    private val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
         override fun deliverSelfNotifications() = false
 
         override fun onChange(selfChange: Boolean, uri: Uri): Unit = lock.withLock {
