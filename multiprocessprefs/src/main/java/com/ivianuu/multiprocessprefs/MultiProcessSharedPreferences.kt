@@ -28,6 +28,7 @@ import kotlin.concurrent.withLock
 
 class MultiProcessSharedPreferences private constructor(
     private val context: Context,
+    val packageName: String,
     val name: String
 ) : SharedPreferences {
 
@@ -63,7 +64,7 @@ class MultiProcessSharedPreferences private constructor(
     private val listeners =
         mutableListOf<SharedPreferences.OnSharedPreferenceChangeListener>()
 
-    private val uri = Uri.parse("content://${context.packageName}.prefs/$name")
+    private val uri = Uri.parse("content://$packageName.prefs/$name")
 
     private val pendingChanges = mutableSetOf<String>()
 
@@ -251,12 +252,18 @@ class MultiProcessSharedPreferences private constructor(
         private val instances =
             mutableMapOf<String, MultiProcessSharedPreferences>()
 
-        @Synchronized
+        private val instancesLock = ReentrantLock()
+
         operator fun invoke(
             context: Context,
-            name: String = context.packageName + "_preferences" // default name
-        ) = instances.getOrPut(name) {
-            MultiProcessSharedPreferences(context.applicationContext, name)
+            packageName: String = context.packageName,
+            preferencesName: String = packageName + "_preferences" // default name
+        ) = instancesLock.withLock {
+            instances.getOrPut(preferencesName) {
+                MultiProcessSharedPreferences(
+                    context.applicationContext, packageName, preferencesName
+                )
+            }
         }
     }
 }
