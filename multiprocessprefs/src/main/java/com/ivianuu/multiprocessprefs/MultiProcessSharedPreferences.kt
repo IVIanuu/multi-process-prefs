@@ -158,8 +158,7 @@ class MultiProcessSharedPreferences private constructor(
     ) : SharedPreferences.Editor {
 
         private val values = mutableMapOf<String, Any>()
-        private val removedEntries = mutableSetOf<String>()
-        private var cleared = false
+        private var clear = false
 
         override fun putString(key: String, value: String) = putValue(key, value)
 
@@ -173,19 +172,15 @@ class MultiProcessSharedPreferences private constructor(
 
         override fun putBoolean(key: String, value: Boolean) = putValue(key, value)
 
-        override fun remove(key: String) = apply {
-            values.remove(key)
-            removedEntries.add(key)
-        }
+        override fun remove(key: String) = putValue(key, this)
 
         override fun clear() = apply {
-            cleared = true
-            removedEntries.clear()
+            clear = true
             values.clear()
         }
 
         override fun commit(): Boolean {
-            if (cleared) {
+            if (clear) {
                 val uri = getAllUri(contentUri, name)
                 context.contentResolver.delete(uri, null, null)
             }
@@ -193,17 +188,18 @@ class MultiProcessSharedPreferences private constructor(
             values.forEach { (key, value) ->
                 val uri = getUri(contentUri, key, name)
 
-                val contentValues = ContentValues()
-                contentValues.put(COLUMN_KEY, key)
-                contentValues.put(COLUMN_VALUE, value.serialize())
-                contentValues.put(COLUMN_TYPE, value.prefType.key)
+                // "this" means that the value should be removed
+                if (value != this) {
+                    val contentValues = ContentValues()
+                    contentValues.put(COLUMN_KEY, key)
+                    contentValues.put(COLUMN_VALUE, value.serialize())
+                    contentValues.put(COLUMN_TYPE, value.prefType.key)
 
-                context.contentResolver.update(uri, contentValues, null, null)
+                    context.contentResolver.update(uri, contentValues, null, null)
+                } else {
+                    context.contentResolver.delete(uri, null, null)
+                }
             }
-
-            removedEntries
-                .map { getUri(contentUri, it, name) }
-                .forEach { context.contentResolver.delete(it, null, null) }
 
             return true
         }
@@ -214,7 +210,6 @@ class MultiProcessSharedPreferences private constructor(
 
         private fun putValue(key: String, value: Any) = apply {
             values[key] = value
-            removedEntries.remove(key)
         }
     }
 
