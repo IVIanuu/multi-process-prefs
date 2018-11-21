@@ -60,10 +60,6 @@ class MultiProcessSharedPreferences private constructor(
                 null
             }
 
-            this@MultiProcessSharedPreferences.d {
-                "on change -> uri $uri, name $name, key $key, old value $oldValue, new value $newValue"
-            }
-
             if (oldValue != newValue) {
                 if (newValue != null) {
                     map[key] = newValue
