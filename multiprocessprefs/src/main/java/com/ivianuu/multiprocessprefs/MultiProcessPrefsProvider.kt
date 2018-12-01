@@ -56,7 +56,7 @@ open class MultiProcessPrefsProvider : ContentProvider() {
             val newValue = sharedPreferences.all[key]
 
             // "this" indicates that the value where removed
-            if ((pendingChange == newValue) || (pendingChange == this && newValue == null)) return
+            if ((pendingChange == newValue) || (pendingChange == this@MultiProcessPrefsProvider && newValue == null)) return
 
             val name = preferences.toList()
                 .first { it.second == sharedPreferences }

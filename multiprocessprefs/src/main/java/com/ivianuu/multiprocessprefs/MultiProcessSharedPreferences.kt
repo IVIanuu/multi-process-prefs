@@ -45,7 +45,9 @@ class MultiProcessSharedPreferences private constructor(
             val name = uri.pathSegments[0]
 
             // not related to us
-            if (this@MultiProcessSharedPreferences.name != name) return
+            if (this@MultiProcessSharedPreferences.name != name) {
+                return
+            }
 
             val changeId = uri.pathSegments[2]
 
@@ -72,7 +74,9 @@ class MultiProcessSharedPreferences private constructor(
             val oldValue = map[key]
 
             // no op
-            if (oldValue == newValue) return
+            if (oldValue == newValue) {
+                return
+            }
 
             // reflect the change in our local map
             if (newValue != null) {
@@ -247,6 +251,7 @@ class MultiProcessSharedPreferences private constructor(
 
                         changedKeys.add(key)
                         map.remove(key)
+
                         context.contentResolver.update(uri, contentValues, null, null)
                     }
                 }
