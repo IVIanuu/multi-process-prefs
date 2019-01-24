@@ -209,6 +209,7 @@ open class MultiProcessPrefsProvider : ContentProvider() {
 
     private fun getSharedPrefs(uri: Uri) = lock.withLock {
         val name = uri.pathSegments[0]
+
         preferences.getOrPut(name) {
             val context =
                 if (useDeviceProtectedStore && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
