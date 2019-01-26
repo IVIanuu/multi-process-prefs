@@ -17,30 +17,10 @@
 plugins {
     id("com.android.application")
     id("kotlin-android")
-    id("kotlin-android-extensions")
-    id("kotlin-kapt")
 }
 
-android {
-    compileSdkVersion(Build.compileSdk)
-
-    defaultConfig {
-        applicationId = Build.applicationId
-        buildToolsVersion = Build.buildToolsVersion
-        minSdkVersion(Build.minSdk)
-        targetSdkVersion(Build.targetSdk)
-        versionCode = Build.versionCode
-        versionName = Build.versionName
-    }
-
-    androidExtensions {
-        isExperimental = true
-    }
-
-    kapt {
-        correctErrorTypes = true
-    }
-}
+apply(from = "https://raw.githubusercontent.com/IVIanuu/gradle-scripts/master/android-build-app.gradle")
+apply(from = "https://raw.githubusercontent.com/IVIanuu/gradle-scripts/master/kt-android-ext.gradle")
 
 dependencies {
     implementation(Deps.androidxAppCompat)

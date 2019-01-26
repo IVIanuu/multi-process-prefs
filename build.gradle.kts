@@ -18,11 +18,10 @@ buildscript {
     repositories {
         google()
         jcenter()
-        maven("https://dl.bintray.com/kotlin/kotlin-eap")
     }
     dependencies {
         classpath(Deps.androidGradlePlugin)
-        classpath("com.android.tools.build.jetifier:jetifier-processor:1.0.0-beta02")
+        classpath(Deps.bintrayGradlePlugin)
         classpath(Deps.kotlinGradlePlugin)
         classpath(Deps.mavenGradlePlugin)
     }
@@ -32,8 +31,6 @@ allprojects {
     repositories {
         google()
         jcenter()
-        maven("https://dl.bintray.com/kotlin/kotlin-eap")
-        maven("https://jitpack.io")
     }
 }
 
