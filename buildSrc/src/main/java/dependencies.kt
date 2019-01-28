@@ -14,7 +14,7 @@ object Build {
 object Publishing {
     const val groupId = "com.ivianuu.multiprocessprefs"
     const val vcsUrl = "https://github.com/IVIanuu/multi-process-prefs"
-    const val version = "git"
+    const val version = "${Build.versionName}-dev-1"
 }
 
 object Versions {
