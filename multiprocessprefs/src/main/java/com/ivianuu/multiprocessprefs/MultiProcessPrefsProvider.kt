@@ -99,11 +99,11 @@ open class MultiProcessPrefsProvider : ContentProvider() {
     }
 
     final override fun insert(uri: Uri, values: ContentValues): Uri? {
-        throw IllegalArgumentException("unsupported operation use update instead")
+        error("unsupported operation use update instead")
     }
 
     final override fun delete(uri: Uri, selection: String?, selectionArgs: Array<String>?): Int {
-        throw IllegalArgumentException("unsupported operation use update instead")
+        error("unsupported operation use update instead")
     }
 
     final override fun update(

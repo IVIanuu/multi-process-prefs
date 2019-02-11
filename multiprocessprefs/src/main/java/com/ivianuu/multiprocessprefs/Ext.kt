@@ -40,7 +40,7 @@ internal val Any.prefType
         is Long -> PrefType.LONG
         is String -> PrefType.STRING
         is Set<*> -> PrefType.STRING_SET
-        else -> throw IllegalArgumentException("unsupported type ${this.javaClass.name}")
+        else -> error("unsupported type ${this.javaClass.name}")
     }
 
 internal fun Any.serialize() = when (prefType) {
