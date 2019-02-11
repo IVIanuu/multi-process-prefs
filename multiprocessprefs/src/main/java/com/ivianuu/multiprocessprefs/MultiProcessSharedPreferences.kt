@@ -257,15 +257,12 @@ class MultiProcessSharedPreferences private constructor(
                 }
             }
 
-            if (changedKeys.isNotEmpty()) {
-                val listeners = listeners.toList()
-                changedKeys.forEach { key ->
-                    listeners.forEach {
-                        it.onSharedPreferenceChanged(
-                            this@MultiProcessSharedPreferences,
-                            key
-                        )
-                    }
+            changedKeys.forEach { key ->
+                listeners.toList().forEach {
+                    it.onSharedPreferenceChanged(
+                        this@MultiProcessSharedPreferences,
+                        key
+                    )
                 }
             }
 

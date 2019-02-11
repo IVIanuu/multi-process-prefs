@@ -22,7 +22,16 @@ import android.os.Bundle
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import com.ivianuu.multiprocessprefs.MultiProcessSharedPreferences
-import kotlinx.android.synthetic.main.activity_main.*
+import kotlinx.android.synthetic.main.activity_main.clear
+import kotlinx.android.synthetic.main.activity_main.put_boolean
+import kotlinx.android.synthetic.main.activity_main.put_float
+import kotlinx.android.synthetic.main.activity_main.put_int
+import kotlinx.android.synthetic.main.activity_main.put_key_input
+import kotlinx.android.synthetic.main.activity_main.put_long
+import kotlinx.android.synthetic.main.activity_main.put_string
+import kotlinx.android.synthetic.main.activity_main.put_value_input
+import kotlinx.android.synthetic.main.activity_main.remove
+import kotlinx.android.synthetic.main.activity_main.remove_key_input
 
 class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceChangeListener {
 
@@ -40,9 +49,6 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        startService(Intent(this, SomeService::class.java))
-        startService(Intent(this, SomeOtherService::class.java))
-
         put_boolean.prefClickListener { key, value -> putBoolean(key, value.toBoolean()) }
         put_float.prefClickListener { key, value -> putFloat(key, value.toFloat()) }
         put_int.prefClickListener { key, value -> putInt(key, value.toInt()) }
@@ -57,6 +63,12 @@ class MainActivity : AppCompatActivity(), SharedPreferences.OnSharedPreferenceCh
         clear.setOnClickListener { prefs.edit().clear().apply() }
 
         prefs.registerOnSharedPreferenceChangeListener(this)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        startService(Intent(this, SomeService::class.java))
+        startService(Intent(this, SomeOtherService::class.java))
     }
 
     override fun onDestroy() {

@@ -17,7 +17,6 @@
 package com.ivianuu.multiprocessprefs
 
 import android.content.SharedPreferences
-import android.util.Log
 import org.json.JSONArray
 
 internal enum class Action {
@@ -65,10 +64,9 @@ internal fun String.deserialize(prefType: PrefType): Any = when (prefType) {
     PrefType.STRING -> toString()
     PrefType.STRING_SET -> {
         val array = JSONArray(this)
-        val set = mutableSetOf<String>()
         (0 until array.length())
-            .mapTo(set) { array.getString(it) }
-        set
+            .map { array.getString(it) }
+            .toSet()
     }
 }
 
@@ -85,8 +83,4 @@ internal fun SharedPreferences.Editor.putAny(key: String, value: Any) = apply {
 
 internal enum class PrefType {
     BOOLEAN, FLOAT, INT, LONG, STRING, STRING_SET
-}
-
-internal inline fun Any.d(m: () -> String) {
-    Log.d(javaClass.simpleName, m())
 }
