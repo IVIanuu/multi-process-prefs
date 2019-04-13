@@ -17,7 +17,11 @@
 package com.ivianuu.multiprocessprefs
 
 import android.content.SharedPreferences
+import android.os.Handler
+import android.os.Looper
 import org.json.JSONArray
+
+internal val callbackHandler = Handler(Looper.getMainLooper())
 
 internal enum class Action {
     PUT, REMOVE, CLEAR
