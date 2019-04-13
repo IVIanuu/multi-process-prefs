@@ -26,6 +26,7 @@ import android.os.Looper
 import android.util.Base64
 import org.json.JSONObject
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
@@ -46,15 +47,14 @@ class MultiProcessSharedPreferences private constructor(
 
             // not related to us
             if (this@MultiProcessSharedPreferences.name != name) {
-                return
+                return@onChange
             }
 
             val changeId = uri.pathSegments[2]
 
             // self change?
-            if (pendingChanges.contains(changeId)) {
-                pendingChanges.remove(changeId)
-                return
+            if (pendingChanges.remove(changeId)) {
+                return@onChange
             }
 
             val key = uri.pathSegments[1]
@@ -62,7 +62,7 @@ class MultiProcessSharedPreferences private constructor(
             // someone else cleared the all values so just clear the map
             if (key == KEY_ALL) {
                 map.clear()
-                return
+                return@onChange
             }
 
             // get the new value
@@ -75,7 +75,7 @@ class MultiProcessSharedPreferences private constructor(
 
             // no op
             if (oldValue == newValue) {
-                return
+                return@onChange
             }
 
             // reflect the change in our local map
@@ -280,9 +280,7 @@ class MultiProcessSharedPreferences private constructor(
 
     companion object {
         private val instances =
-            mutableMapOf<String, MultiProcessSharedPreferences>()
-
-        private val instancesLock = ReentrantLock()
+            ConcurrentHashMap<String, MultiProcessSharedPreferences>()
 
         /**
          * Returns a new [MultiProcessSharedPreferences] instance
@@ -291,8 +289,8 @@ class MultiProcessSharedPreferences private constructor(
             context: Context,
             packageName: String = context.packageName,
             preferencesName: String = packageName + "_preferences" // default name
-        ) = instancesLock.withLock {
-            instances.getOrPut(preferencesName) {
+        ): MultiProcessSharedPreferences {
+            return instances.getOrPut(preferencesName) {
                 MultiProcessSharedPreferences(
                     context.applicationContext, packageName, preferencesName
                 )

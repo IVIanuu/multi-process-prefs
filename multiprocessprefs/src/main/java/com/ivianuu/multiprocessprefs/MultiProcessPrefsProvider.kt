@@ -46,32 +46,32 @@ open class MultiProcessPrefsProvider : ContentProvider() {
 
     private val lock = ReentrantLock()
 
-    private val changeListener = object : SharedPreferences.OnSharedPreferenceChangeListener {
-        override fun onSharedPreferenceChanged(
-            sharedPreferences: SharedPreferences,
-            key: String
-        ): Unit = lock.withLock {
-            val pendingChange = pendingChanges.remove(key)
+    private val changeListener =
+        SharedPreferences.OnSharedPreferenceChangeListener { sharedPreferences, key ->
+            lock.withLock {
+                val pendingChange = pendingChanges.remove(key)
 
-            val newValue = sharedPreferences.all[key]
+                val newValue = sharedPreferences.all[key]
 
-            // "this" indicates that the value where removed
-            if ((pendingChange == newValue) || (pendingChange == this@MultiProcessPrefsProvider && newValue == null)) return
+                // "this" indicates that the value where removed
+                if ((pendingChange == newValue)
+                    || (pendingChange == this@MultiProcessPrefsProvider && newValue == null))
+                    return@OnSharedPreferenceChangeListener
 
-            val name = preferences.toList()
-                .first { it.second == sharedPreferences }
-                .first
+                val name = preferences.toList()
+                    .first { it.second == sharedPreferences }
+                    .first
 
-            val value = sharedPreferences.all[key]
-            val prefType = value?.prefType ?: PrefType.STRING
+                val value = sharedPreferences.all[key]
+                val prefType = value?.prefType ?: PrefType.STRING
 
-            val uri = getChangeUri(
-                key, name,
-                UUID.randomUUID().toString(), value?.serialize(), prefType
-            )
-            context!!.contentResolver.notifyChange(uri, null)
+                val uri = getChangeUri(
+                    key, name,
+                    UUID.randomUUID().toString(), value?.serialize(), prefType
+                )
+                context!!.contentResolver.notifyChange(uri, null)
+            }
         }
-    }
 
     final override fun onCreate() = true
 
